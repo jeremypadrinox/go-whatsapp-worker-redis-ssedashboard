@@ -4,7 +4,7 @@
   <img src="./public/1.png" alt="Go-WhatsApp Worker dashboard" width="780">
 </p>
 
-[![Go Version](https://img.shields.io/badge/Go-1.24+-0ea5e9?logo=go&logoColor=white)](https://go.dev/dl/)
+[![Go Version](https://img.shields.io/badge/Go-1.23+-0ea5e9?logo=go&logoColor=white)](https://go.dev/dl/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/your-org/gowhatsapp-worker)](https://goreportcard.com/report/github.com/your-org/gowhatsapp-worker)
 [![Docker Ready](https://img.shields.io/badge/Docker-ready-0db7ed?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Redis Streams](https://img.shields.io/badge/Redis-Streams%20Queue-dc382d?logo=redis&logoColor=white)](https://redis.io/docs/data-types/streams/)
@@ -92,7 +92,7 @@ flowchart LR
 
 ### Prerequisites
 
-- Go `1.24+`
+- Go `1.23+`
 - Redis `>= 5` with Streams support
 - PostgreSQL `13+`
 - Running instance of [`go-whatsapp-web-multidevice`](https://github.com/aldinokemal/go-whatsapp-web-multidevice)
