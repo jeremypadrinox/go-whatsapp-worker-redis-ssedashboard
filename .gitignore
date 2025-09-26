@@ -17,7 +17,6 @@
 go.work
 
 # Go module cache
-go.sum
 
 # IDE and editor files
 .vscode/
