@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go-WhatsApp Worker - System Documentation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #7209b7;
+            --success: #06d6a0;
+            --info: #4cc9f0;
+            --warning: #ffd166;
+            --danger: #ef476f;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray-100: #f8f9fa;
+            --gray-200: #e9ecef;
+            --gray-300: #dee2e6;
+            --gray-400: #ced4da;
+            --gray-500: #adb5bd;
+            --gray-600: #6c757d;
+            --gray-700: #495057;
+            --gray-800: #343a40;
+            --gray-900: #212529;
+            --sidebar-width: 280px;
+            --header-height: 70px;
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-800);
+            background-color: #f5f7fb;
+            scroll-behavior: smooth;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--primary), var(--secondary));
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: var(--transition);
+            z-index: 1000;
+            box-shadow: 3px 0 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-item {
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.85);
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left-color: var(--warning);
+        }
+        
+        .nav-item i {
+            width: 24px;
+            text-align: center;
+        }
+        
+        .sidebar-footer {
+            padding: 1.5rem;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: auto;
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            transition: var(--transition);
+        }
+        
+        header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title h1 {
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+        
+        .header-title p {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+        }
+        
+        .search-box {
+            position: relative;
+            width: 300px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border-radius: 30px;
+            border: 1px solid var(--gray-300);
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray-500);
+        }
+        
+        .content {
+            padding: 2rem;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        
+        .section:hover {
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08);
+        }
+        
+        .section-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .section-header::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+        }
+        
+        .section-header h2 {
+            font-size: 1.8rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .section-content {
+            padding: 1.5rem;
+        }
+        
+        .subsection {
+            margin-bottom: 2rem;
+        }
+        
+        .subsection:last-child {
+            margin-bottom: 0;
+        }
+        
+        .subsection h3 {
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .subsection h4 {
+            font-size: 1.2rem;
+            color: var(--secondary);
+            margin: 1.2rem 0 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .subsection p {
+            margin-bottom: 1rem;
+            color: var(--gray-700);
+            line-height: 1.7;
+        }
+        
+        .subsection ul, .subsection ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        
+        .subsection li {
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+        
+        /* Code Blocks */
+        .code-block {
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 1.25rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.9rem;
+            position: relative;
+        }
+        
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 8px 8px 0 0;
+            margin: -1.25rem -1.25rem 1rem -1.25rem;
+            font-size: 0.85rem;
+        }
+        
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .copy-btn.copied {
+            background: var(--success);
+        }
+        
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            margin: 1rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--gray-300);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-300);
+        }
+        
+        th {
+            background-color: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:hover {
+            background-color: rgba(67, 97, 238, 0.03);
+        }
+
+        .function-table .code {
+            font-family: 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+            background-color: var(--gray-100);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            word-break: break-word;
+            max-width: 100%;
+            white-space: normal;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .function-table tbody tr:nth-child(even) {
+            background-color: rgba(67, 97, 238, 0.02);
+        }
+
+        /* Function table responsive improvements */
+        .function-table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        .function-table th,
+        .function-table td {
+            padding: 0.75rem 0.5rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--gray-300);
+        }
+
+        /* Standardized column widths for consistent appearance */
+        .function-table th:nth-child(1),
+        .function-table td:nth-child(1) {
+            width: 60px;
+            min-width: 60px;
+            max-width: 60px;
+        }
+
+        .function-table th:nth-child(2),
+        .function-table td:nth-child(2) {
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
+        }
+
+        .function-table th:nth-child(3),
+        .function-table td:nth-child(3) {
+            width: 160px;
+            min-width: 160px;
+            max-width: 160px;
+        }
+
+        .function-table th:nth-child(4),
+        .function-table td:nth-child(4) {
+            width: 200px;
+            min-width: 200px;
+            max-width: 200px;
+        }
+
+        .function-table th:nth-child(5),
+        .function-table td:nth-child(5) {
+            width: 200px;
+            min-width: 200px;
+            max-width: 200px;
+        }
+
+        .function-table th:nth-child(6),
+        .function-table td:nth-child(6) {
+            width: auto;
+            min-width: 250px;
+        }
+
+        /* Mobile responsive function table - maintaining consistency */
+        @media (max-width: 768px) {
+            .function-table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                border-radius: 8px;
+                border: 1px solid var(--gray-300);
+            }
+
+            .function-table {
+                min-width: 900px;
+            }
+
+            .function-table th,
+            .function-table td {
+                padding: 0.5rem 0.25rem;
+                font-size: 0.8rem;
+                text-align: center;
+            }
+
+            .function-table th:nth-child(1),
+            .function-table td:nth-child(1) {
+                width: 50px;
+                min-width: 50px;
+                max-width: 50px;
+            }
+
+            .function-table th:nth-child(2),
+            .function-table td:nth-child(2) {
+                width: 100px;
+                min-width: 100px;
+                max-width: 100px;
+            }
+
+            .function-table th:nth-child(3),
+            .function-table td:nth-child(3) {
+                width: 140px;
+                min-width: 140px;
+                max-width: 140px;
+            }
+
+            .function-table th:nth-child(4),
+            .function-table td:nth-child(4) {
+                width: 180px;
+                min-width: 180px;
+                max-width: 180px;
+            }
+
+            .function-table th:nth-child(5),
+            .function-table td:nth-child(5) {
+                width: 180px;
+                min-width: 180px;
+                max-width: 180px;
+            }
+
+            .function-table th:nth-child(6),
+            .function-table td:nth-child(6) {
+                min-width: 200px;
+            }
+        }
+
+        /* Enhanced table styling for function reference */
+        .function-table th {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Standardized column styling - all columns have same alignment and styling */
+        .function-table th {
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .function-table td {
+            text-align: center;
+            vertical-align: middle;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .function-table td:first-child {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .function-table tbody tr {
+            transition: var(--transition);
+        }
+
+        .function-table tbody tr:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .card {
+            border: 1px solid var(--gray-300);
+            border-radius: 12px;
+            padding: 1.5rem;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card h4 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card p {
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+        
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .badge-success {
+            background-color: var(--success);
+            color: var(--dark);
+        }
+        
+        .badge-warning {
+            background-color: var(--warning);
+            color: var(--dark);
+        }
+        
+        .badge-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .badge-info {
+            background-color: var(--info);
+            color: var(--dark);
+        }
+        
+        /* Architecture Diagram */
+        .architecture-diagram {
+            text-align: center;
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--gray-100);
+            border-radius: 12px;
+        }
+        
+        .architecture-diagram pre {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: left;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin: 0;
+        }
+        
+        /* Footer */
+        footer {
+            background-color: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .sidebar .sidebar-header h1 span,
+            .sidebar .nav-item span,
+            .sidebar .sidebar-footer {
+                display: none;
+            }
+            
+            .sidebar .sidebar-header h1 {
+                justify-content: center;
+            }
+            
+            .sidebar .nav-item {
+                justify-content: center;
+                padding: 1rem;
+            }
+            
+            .sidebar .nav-item i {
+                font-size: 1.2rem;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            
+            .sidebar .sidebar-header {
+                padding: 1rem;
+            }
+            
+            .sidebar .nav-item {
+                padding: 0.75rem 1rem;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .content {
+                padding: 1rem;
+            }
+            
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--gray-100);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--gray-400);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-500);
+        }
+        
+        /* Back to Top Button */
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--primary);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: var(--transition);
+            opacity: 0;
+            visibility: hidden;
+            z-index: 1000;
+        }
+        
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .back-to-top:hover {
+            background: var(--primary-dark);
+            transform: translateY(-3px);
+        }
+        
+        /* Animation for sections */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .section {
+            animation: fadeIn 0.5s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-robot"></i> <span>Go-WhatsApp Worker</span></h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#overview" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="#architecture" class="nav-item">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>Architecture</span>
+                </a>
+                <a href="#components" class="nav-item">
+                    <i class="fas fa-puzzle-piece"></i>
+                    <span>Components</span>
+                </a>
+                <a href="#worker-logic" class="nav-item">
+                    <i class="fas fa-microchip"></i>
+                    <span>Worker Logic</span>
+                </a>
+                <a href="#redis-logic" class="nav-item">
+                    <i class="fas fa-database"></i>
+                    <span>Redis Logic</span>
+                </a>
+                <a href="#ui-logic" class="nav-item">
+                    <i class="fas fa-desktop"></i>
+                    <span>UI Logic</span>
+                </a>
+                <a href="#api-endpoints" class="nav-item">
+                    <i class="fas fa-plug"></i>
+                    <span>API Endpoints</span>
+                </a>
+                <a href="#configuration" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuration</span>
+                </a>
+                <a href="#data-models" class="nav-item">
+                    <i class="fas fa-table"></i>
+                    <span>Data Models</span>
+                </a>
+                <a href="#function-reference" class="nav-item">
+                    <i class="fas fa-code"></i>
+                    <span>Function Reference</span>
+                </a>
+                <a href="#performance" class="nav-item">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Performance</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>Go-WhatsApp Worker Documentation</p>
+                <p>Version 1.0.0</p>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <header>
+                <div class="header-title">
+                    <h1>System Documentation</h1>
+                    <p>Comprehensive guide to the Go-WhatsApp Worker system</p>
+                    <p style="margin: 0; color: var(--gray-500); font-size: 0.9rem;">Last updated: 26 Sep 2025</p>
+                </div>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search documentation...">
+                </div>
+                <a href="/" class="back-to-home-button" style="text-decoration: none; background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 4px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-home"></i>
+                    <span>Back to Home</span>
+                </a>
+            </header>
+            
+            <main class="content">
+                <section id="overview" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-binoculars"></i> System Overview</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-bullseye"></i> System Purpose</h3>
+                            <p>The Go-WhatsApp Worker is a high-performance, scalable system designed to process and send WhatsApp messages through a queue-based architecture. It provides a robust solution for handling large volumes of messages with built-in retry mechanisms, rate limiting, and real-time monitoring.</p>
+                            
+                            <h4><i class="fas fa-star"></i> Key Features</h4>
+                            <ul>
+                                <li><strong>Queue-based Processing:</strong> Uses Redis Streams as a message queue for reliable message handling</li>
+                                <li><strong>Campaign System:</strong> Advanced bulk messaging with campaign and chunk management for large-scale operations</li>
+                                <li><strong>Rate Limiting:</strong> Dual-profile rate limiting (manual/bulk) to comply with WhatsApp API limits</li>
+                                <li><strong>Retry Mechanism:</strong> Automatic retry with exponential backoff for failed messages</li>
+                                <li><strong>Real-time Monitoring:</strong> Dashboard with live statistics and health checks</li>
+                                <li><strong>Scalable Architecture:</strong> Designed for horizontal scaling with concurrent worker pools</li>
+                                <li><strong>Database Integration:</strong> PostgreSQL for persistent message, campaign, and chunk storage</li>
+                                <li><strong>File Lifecycle Management:</strong> Temporary uploads are removed after processing with hourly background cleanups</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-layer-group"></i> Technology Stack</h3>
+                            <div class="card-grid">
+                                <div class="card">
+                                    <h4><i class="fas fa-server"></i> Backend</h4>
+                                    <ul>
+                                        <li>Go (Golang)</li>
+                                        <li>PostgreSQL</li>
+                                        <li>Redis</li>
+                                        <li>RESTful APIs</li>
+                                    </ul>
+                                </div>
+                                <div class="card">
+                                    <h4><i class="fas fa-laptop-code"></i> Frontend</h4>
+                                    <ul>
+                                        <li>HTML5/CSS3</li>
+                                        <li>Vanilla JavaScript</li>
+                                        <li>Server-Sent Events (SSE)</li>
+                                    </ul>
+                                </div>
+                                <div class="card">
+                                    <h4><i class="fas fa-cloud"></i> Infrastructure</h4>
+                                    <ul>
+                                        <li>Docker</li>
+                                        <li>Docker Compose</li>
+                                        <li>Environment-based configuration</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="architecture" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-project-diagram"></i> System Architecture</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-sitemap"></i> High-Level Architecture</h3>
+                            <p>The system follows a clean architecture pattern with distinct layers for different concerns:</p>
+                            
+                            <div class="architecture-diagram">
+                                <pre>
+[External Systems] 
+       ↓ (HTTP API)
+[     API Layer     ]
+       ↓
+[  Message Service  ] ←→ [  Redis Queue   ]
+       ↓                      ↓
+[ Message Processor ] ←→ [ PostgreSQL DB ]
+       ↓
+[ WhatsApp Client   ] → [ WhatsApp API  ]
+                               ↓
+                          [ Recipients   ]
+                                </pre>
+                            </div>
+                            
+                            <h4><i class="fas fa-th-large"></i> Architecture Layers</h4>
+                            <ol>
+                                <li><strong>Interface Layer:</strong> REST API endpoints and web dashboard for user interaction</li>
+                                <li><strong>Service Layer:</strong> Business logic for message handling and processing</li>
+                                <li><strong>Worker Layer:</strong> Core message processing logic with rate limiting and retry mechanisms</li>
+                                <li><strong>Integration Layer:</strong> Communication with Redis, PostgreSQL, and WhatsApp API</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-exchange-alt"></i> Data Flow</h3>
+                            <ol>
+                                <li>Messages are received via API endpoints and stored in the Redis queue (media files persisted in <code>tmp/</code>)</li>
+                                <li>Worker processes continuously poll Redis for new messages</li>
+                                <li>Messages are retrieved, validated, and sent to WhatsApp API</li>
+                                <li>Results are stored in PostgreSQL database for tracking</li>
+                                <li>Temporary media files are deleted after success or terminal failure, with hourly background sweeps for leftovers</li>
+                                <li>Dashboard provides real-time statistics via Server-Sent Events</li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="components" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-puzzle-piece"></i> System Components</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-cube"></i> Core Components</h3>
+                            
+                            <div class="card-grid">
+                                <div class="card">
+                                    <h4><i class="fas fa-envelope"></i> Message Processor</h4>
+                                    <p>Central component responsible for processing messages from the Redis queue, applying rate limiting, and sending messages via WhatsApp API.</p>
+                                    <span class="badge badge-primary">Core</span>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-memory"></i> Redis Client</h4>
+                                    <p>Handles all interactions with Redis including queue operations, statistics retrieval, and connection management.</p>
+                                    <span class="badge badge-primary">Core</span>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-database"></i> Database Client</h4>
+                                    <p>Manages PostgreSQL database connections and executes queries for message storage and retrieval.</p>
+                                    <span class="badge badge-primary">Core</span>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fab fa-whatsapp"></i> WhatsApp Client</h4>
+                                    <p>Wrapper for the WhatsApp API that handles message sending, typing presence, and health checks.</p>
+                                    <span class="badge badge-primary">Core</span>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-tachometer-alt"></i> Rate Limiter</h4>
+                                    <p>Implements intelligent rate limiting with natural typing delays and periodic breaks to simulate human behavior.</p>
+                                    <span class="badge badge-warning">Utility</span>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-heartbeat"></i> Health Monitor</h4>
+                                    <p>Performs periodic health checks on all system components and recovers stuck messages.</p>
+                                    <span class="badge badge-warning">Utility</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-tools"></i> Supporting Components</h3>
+                            
+                            <div class="card-grid">
+                                <div class="card">
+                                    <h4><i class="fas fa-sliders-h"></i> Configuration Manager</h4>
+                                    <p>Loads and validates configuration from environment variables with sensible defaults.</p>
+                                    <span class="badge badge-info">Support</span>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-globe"></i> Web Server</h4>
+                                    <p>Serves the dashboard interface and API endpoints with authentication middleware.</p>
+                                    <span class="badge badge-info">Support</span>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-comments"></i> Message Service</h4>
+                                    <p>High-level service that orchestrates message operations and validation.</p>
+                                    <span class="badge badge-info">Support</span>
+                                </div>
+
+                                <div class="card">
+                                    <h4><i class="fas fa-folder-open"></i> File Storage Helper</h4>
+                                    <p>Stores inbound media in the <code>tmp/</code> directory and exposes secure delete helpers for post-send cleanup.</p>
+                                    <span class="badge badge-info">Support</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="worker-logic" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-microchip"></i> Worker Logic</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-sync-alt"></i> Message Processing Flow</h3>
+                            <p>The worker follows a continuous loop to process messages from the Redis queue:</p>
+                            
+                            <ol>
+                                <li><strong>Queue Polling:</strong> Workers claim entries from Redis Streams via <code>XREADGROUP</code> with a blocking timeout.</li>
+                                <li><strong>Message Retrieval:</strong> Deserialize the JSON payload and hydrate message + campaign context.</li>
+                                <li><strong>Status Update:</strong> Mark the message row as <em>processing</em> in PostgreSQL before calling the sender.</li>
+                                <li><strong>Rate Limiting:</strong> Apply profile-driven pacing (manual vs bulk) before each outbound request.</li>
+                                <li><strong>Message Sending:</strong> Invoke the WhatsApp client with typing simulation, media duplication, and presence toggles.</li>
+                                <li><strong>Result Persistence:</strong> Persist API response data, update status, and acknowledge the stream entry.</li>
+                                <li><strong>Retry Handling:</strong> Schedule exponential backoff via the delayed ZSET for retryable failures up to <code>WORKER_MAX_RETRIES</code>.</li>
+                                <li><strong>File Cleanup:</strong> Delete temporary media on success or terminal failure and rely on hourly sweeps for leftovers.</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-stopwatch"></i> Rate Limiting Implementation</h3>
+                            <p>The system implements sophisticated rate limiting to comply with WhatsApp API guidelines:</p>
+                            
+                            <ul>
+                                <li><strong>Profile-aware Delays:</strong> Manual mode uses <code>RATE_LIMIT_DELAY_MIN/MAX</code>; bulk mode derives delays from <code>RATE_DELAY_MEAN_MS</code> ± <code>RATE_DELAY_JITTER_MS</code>.</li>
+                                <li><strong>Typing Simulation:</strong> Random typing windows (manual = configured min/max, bulk = 3-8s) combined with presence updates.</li>
+                                <li><strong>Natural Breaks & Cooldowns:</strong> Manual profile uses <code>NATURAL_BREAK_INTERVAL</code> and duration bounds; bulk profile enforces cooldowns after <code>RATE_BURST_LIMIT</code> sends using <code>RATE_COOLDOWN_SECONDS</code>.</li>
+                                <li><strong>Randomization:</strong> All delays include jitter to avoid deterministic patterns.</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-exclamation-triangle"></i> Error Handling & Retry Logic</h3>
+                            <p>Robust error handling with automatic retry mechanisms:</p>
+                            
+                            <ul>
+                                <li><strong>Incremental Retries:</strong> Messages can be retried up to configured maximum attempts</li>
+                                <li><strong>Backoff Strategy:</strong> Exponential backoff for repeated failures</li>
+                                <li><strong>Stuck Message Recovery:</strong> Automatic recovery of messages stuck in processing state</li>
+                                <li><strong>Error Classification:</strong> Different handling for temporary vs permanent failures</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-stethoscope"></i> Health Monitoring</h3>
+                            <p>Continuous health monitoring ensures system reliability:</p>
+                            
+                            <ul>
+                                <li><strong>Component Health Checks:</strong> Regular checks for Redis, PostgreSQL, and WhatsApp API</li>
+                                <li><strong>Performance Metrics:</strong> Real-time collection of processing statistics</li>
+                                <li><strong>Automatic Recovery:</strong> Self-healing mechanisms for common failure scenarios</li>
+                                <li><strong>Alerting:</strong> Logging and monitoring for abnormal conditions</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="redis-logic" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-database"></i> Redis Logic</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-list"></i> Queue Management</h3>
+                            <p>Redis serves as the primary message queue with the following characteristics:</p>
+                            
+                            <ul>
+                                <li><strong>Data Structure:</strong> Uses Redis Streams (XADD/XREADGROUP) with consumer groups for ordered processing</li>
+                                <li><strong>Blocking Operations:</strong> Leverages XREADGROUP with blocking semantics for efficient queue polling</li>
+                                <li><strong>Message Serialization:</strong> JSON encoding for message data</li>
+                                <li><strong>Queue Statistics:</strong> Real-time monitoring of stream depth and consumer performance</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-code"></i> Redis Client Implementation</h3>
+                            <p>The Redis client provides high-level operations for queue management:</p>
+                            
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Method</th>
+                                            <th>Description</th>
+                                            <th>Parameters</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>PushMessage</td>
+                                            <td>Enqueue payload via XADD with automatic stream trimming</td>
+                                            <td>messageData []byte</td>
+                                        </tr>
+                                        <tr>
+                                            <td>PopMessageWithID</td>
+                                            <td>Reads the next message with consumer groups using XREADGROUP</td>
+                                            <td>timeout time.Duration</td>
+                                        </tr>
+                                        <tr>
+                                            <td>AckMessageStream</td>
+                                            <td>Acknowledges processed entries through XACK</td>
+                                            <td>messageID string</td>
+                                        </tr>
+                                        <tr>
+                                            <td>GetQueueLength</td>
+                                            <td>Returns current stream depth via XLEN</td>
+                                            <td>-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>ReclaimIdleMessages</td>
+                                            <td>Claims idle pending entries and requeues them for processing</td>
+                                            <td>minIdle time.Duration, count int64</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-plug"></i> Connection Management</h3>
+                            <p>Optimized Redis connection handling:</p>
+                            
+                            <ul>
+                                <li><strong>Connection Pooling:</strong> Configurable pool size (default: 20 connections)</li>
+                                <li><strong>Idle Connection Management:</strong> Maintains minimum idle connections</li>
+                                <li><strong>Timeout Configuration:</strong> Customizable dial, read, and write timeouts</li>
+                                <li><strong>Health Checks:</strong> Regular ping operations to verify connectivity</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="ui-logic" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-desktop"></i> UI Logic</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-chart-line"></i> Dashboard Features</h3>
+                            <p>The web dashboard provides real-time monitoring and system insights:</p>
+                            
+                            <div class="card-grid">
+                                <div class="card">
+                                    <h4><i class="fas fa-bolt"></i> Real-time Statistics</h4>
+                                    <p>Live updates of message processing metrics using Server-Sent Events</p>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-heart"></i> System Health</h4>
+                                    <p>Visual indicators for component status and connectivity</p>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-tachometer-alt"></i> Performance Metrics</h4>
+                                    <p>Throughput, success rates, and processing times</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-window-maximize"></i> UI Components</h3>
+                            <h4><i class="fas fa-th-large"></i> Main Dashboard</h4>
+                            <ul>
+                                <li><strong>Worker Status:</strong> Current system status and uptime</li>
+                                <li><strong>Session Statistics:</strong> Messages processed, sent, failed in current session</li>
+                                <li><strong>Database Stats:</strong> Total messages, success rates, retry counts</li>
+                                <li><strong>Redis Queue:</strong> Queue length, health status, throughput metrics</li>
+                            </ul>
+                            
+                            <h4><i class="fas fa-presentation"></i> Presentation Mode</h4>
+                            <p>Full-screen presentation mode optimized for displays:</p>
+                            <ul>
+                                <li>Large, readable statistics</li>
+                                <li>Auto-updating metrics</li>
+                                <li>Minimal interface for focus</li>
+                                <li>Responsive design for different screen sizes</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-sync"></i> Real-time Updates</h3>
+                            <p>Implementation of live data streaming:</p>
+                            
+                            <ul>
+                                <li><strong>Server-Sent Events:</strong> Continuous stream of statistics from server</li>
+                                <li><strong>Auto-refresh:</strong> Automatic updates every second</li>
+                                <li><strong>Manual Refresh:</strong> On-demand data reload capability</li>
+                                <li><strong>Error Handling:</strong> Graceful degradation when connection fails</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="api-endpoints" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-plug"></i> API Endpoints</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-paper-plane"></i> Message Operations</h3>
+                            
+                            <div class="card-grid">
+                                <div class="card">
+                                    <h4><i class="fas fa-paper-plane"></i> POST /api/send/message</h4>
+                                    <p>Send a single or bulk WhatsApp text message</p>
+                                    <p><span class="badge badge-success">Protected</span></p>
+                                    <div class="code-block">
+                                        <div class="code-header">
+                                            <span>JSON</span>
+                                            <button class="copy-btn">Copy</button>
+                                        </div>
+                                        <pre>{
+  "phone": "6281234567890" ,
+  "message": "Hello, World!",
+  "reply_message_id": "optional-reply-id",
+  "is_forwarded": false,
+  "duration": 0
+}
+
+# Bulk: provide comma-separated phone numbers
+# "phone": "6281234567890,6281234567891,6281234567892"</pre>
+                                    </div>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-image"></i> POST /api/send/image</h4>
+                                    <p>Send an image with optional caption; supports bulk via comma-separated phone</p>
+                                    <p><span class="badge badge-success">Protected</span></p>
+                                    <div class="code-block">
+                                        <div class="code-header">
+                                            <span>multipart/form-data</span>
+                                            <button class="copy-btn">Copy</button>
+                                        </div>
+                                        <pre>phone=6281234567890[,6281234567891,...]
+caption=Optional caption
+image=@/path/to/image.jpg
+view_once=true|false
+compress=true|false
+is_forwarded=true|false
+# Optional:
+# reply_message_id=xyz
+# duration=60</pre>
+                                    </div>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-paperclip"></i> POST /api/send/file</h4>
+                                    <p>Send a file/document with optional caption; supports bulk via comma-separated phone</p>
+                                    <p><span class="badge badge-success">Protected</span></p>
+                                    <div class="code-block">
+                                        <div class="code-header">
+                                            <span>multipart/form-data</span>
+                                            <button class="copy-btn">Copy</button>
+                                        </div>
+                                        <pre>phone=6281234567890[,6281234567891,...]
+caption=Optional caption
+file=@/path/to/file.pdf
+is_forwarded=true|false
+# Optional:
+# reply_message_id=xyz
+# duration=60</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-chart-bar"></i> Statistics & Monitoring</h3>
+                            
+                            <div class="card-grid">
+                                <div class="card">
+                                    <h4><i class="fas fa-stream"></i> GET /api/statistics/stream</h4>
+                                    <p>Server-Sent Events (SSE) stream for real-time stats (worker, DB, Redis)</p>
+                                    <p><span class="badge badge-success">Protected</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-book"></i> OpenAPI Specification</h3>
+                            <p>You can download or view the full OpenAPI spec for this API here:</p>
+                            <p>
+    <a href="/docs/openapi.yml" style="text-decoration: none; background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 6px; margin-right: 8px;">Download openapi.yml</a>
+    <a href="/docs/swagger" style="text-decoration: none; background: var(--secondary); color: white; padding: 0.5rem 1rem; border-radius: 6px;">Open Swagger</a>
+</p>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-lock"></i> Authentication</h3>
+                            <p>API endpoints are protected with configurable authentication:</p>
+                            
+                            <ul>
+                                <li><strong>Basic Auth:</strong> Dashboard and REST endpoints share <code>DASHBOARD_USERNAME</code> / <code>DASHBOARD_PASSWORD</code> credentials.</li>
+                                <li><strong>Toggle:</strong> Set <code>ENABLE_AUTH=false</code> for local development (not recommended for production exposure).</li>
+                            </ul>
+                            <p><em>Note:</em> Legacy <code>/health</code> and non-SSE statistics endpoints are not available; use <code>/api/statistics/stream</code>.</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="configuration" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-cog"></i> Configuration</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-sliders-h"></i> Environment Variables</h3>
+                            <p>The system is configured through environment variables with sensible defaults:</p>
+                            
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Variable</th>
+                                            <th>Description</th>
+                                            <th>Default</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>DATABASE_HOST</td>
+                                            <td>PostgreSQL database host</td>
+                                            <td>-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>DATABASE_PORT</td>
+                                            <td>PostgreSQL database port</td>
+                                            <td>5432</td>
+                                        </tr>
+                                        <tr>
+                                            <td>WHATSAPP_BASE_URL</td>
+                                            <td>WhatsApp API base URL</td>
+                                            <td>-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>WHATSAPP_AUTH</td>
+                                            <td>WhatsApp API authorization header</td>
+                                            <td>-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>REDIS_HOST</td>
+                                            <td>Redis server host</td>
+                                            <td>localhost</td>
+                                        </tr>
+                                        <tr>
+                                            <td>REDIS_PORT</td>
+                                            <td>Redis server port</td>
+                                            <td>6379</td>
+                                        </tr>
+                                        <tr>
+                                            <td>WORKER_MAX_RETRIES</td>
+                                            <td>Maximum retry attempts for failed messages</td>
+                                            <td>3</td>
+                                        </tr>
+                                        <tr>
+                                            <td>RATE_LIMIT_DELAY_MIN</td>
+                                            <td>Minimum delay between messages</td>
+                                            <td>2s</td>
+                                        </tr>
+                                        <tr>
+                                            <td>RATE_LIMIT_DELAY_MAX</td>
+                                            <td>Maximum delay between messages</td>
+                                            <td>5s</td>
+                                        </tr>
+                                        <tr>
+                                            <td>RATE_PROFILE</td>
+                                            <td>Rate limiting profile (manual/bulk)</td>
+                                            <td>manual</td>
+                                        </tr>
+                                        <tr>
+                                            <td>BULK_CHUNK_SIZE</td>
+                                            <td>Number of recipients per chunk for bulk campaigns</td>
+                                            <td>500</td>
+                                        </tr>
+                                        <tr>
+                                            <td>WORKER_CONCURRENCY</td>
+                                            <td>Number of concurrent workers for bulk processing</td>
+                                            <td>10</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-wrench"></i> Advanced Configuration</h3>
+                            <p>Performance and behavior tuning options:</p>
+                            
+                            <ul>
+                                <li><strong>Connection Pooling:</strong> Database and Redis connection limits</li>
+                                <li><strong>Timeout Settings:</strong> Customizable operation timeouts</li>
+                                <li><strong>Rate Limiting:</strong> Configurable message processing rates</li>
+                                <li><strong>Health Check Intervals:</strong> Adjustable monitoring frequency</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="data-models" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-table"></i> Data Models</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-envelope-open-text"></i> Message Model</h3>
+                            <p>Core data structure for message processing:</p>
+                            
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span>Go Struct</span>
+                                    <button class="copy-btn">Copy</button>
+                                </div>
+                                <pre>type Message struct {
+    ID             string      `json:"id"`
+    Phone          string      `json:"phone"`
+    Message        string      `json:"message"`
+    MessageType    string      `json:"message_type"`
+    Caption        string      `json:"caption"`
+    FilePath       string      `json:"file_path"`
+    ImageURL       string      `json:"image_url"`
+    ViewOnce       bool        `json:"view_once"`
+    Compress       bool        `json:"compress"`
+    IsForwarded    bool        `json:"is_forwarded"`
+    ReplyMessageID string      `json:"reply_message_id"`
+    Duration       int         `json:"duration"`
+    Provider       string      `json:"provider"`
+    CampaignID     *string     `json:"campaign_id,omitempty"`
+    ChunkID        *string     `json:"chunk_id,omitempty"`
+    QueueStatus    string      `json:"queue_status"`
+    Status         string      `json:"status"`
+    Attempts       int         `json:"attempts"`
+    MaxAttempts    int         `json:"max_attempts"`
+    CreatedAt      time.Time   `json:"created_at"`
+    UpdatedAt      time.Time   `json:"updated_at"`
+    SentAt         *time.Time  `json:"sent_at,omitempty"`
+    MessageID      *string     `json:"message_id,omitempty"`
+    APIResponse    interface{} `json:"api_response,omitempty"`
+    ErrorMessage   *string     `json:"error_message,omitempty"`
+}
+
+type Campaign struct {
+    ID          string    `json:"id"`
+    Token       string    `json:"token"`
+    Status      string    `json:"status"`
+    MessageType string    `json:"message_type"`
+    TotalChunks int       `json:"total_chunks"`
+    CreatedAt   time.Time `json:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type Chunk struct {
+    ID         string    `json:"id"`
+    CampaignID string    `json:"campaign_id"`
+    Recipients []string  `json:"recipients"`
+    Status     string    `json:"status"`
+    Attempts   int       `json:"attempts"`
+    MaxAttempts int      `json:"max_attempts"`
+    CreatedAt  time.Time `json:"created_at"`
+    UpdatedAt  time.Time `json:"updated_at"`
+    ErrorMessage *string `json:"error_message,omitempty"`
+}</pre>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-database"></i> Database Schema</h3>
+                            <p>PostgreSQL table structure for message storage:</p>
+                            
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span>SQL</span>
+                                    <button class="copy-btn">Copy</button>
+                                </div>
+                                <pre>CREATE TABLE outgoing_messages (
+    id VARCHAR PRIMARY KEY,
+    phone VARCHAR NOT NULL,
+    message TEXT NOT NULL,
+    message_type VARCHAR NOT NULL,
+    caption TEXT,
+    file_path VARCHAR,
+    image_url VARCHAR,
+    view_once BOOLEAN DEFAULT FALSE,
+    compress BOOLEAN DEFAULT FALSE,
+    is_forwarded BOOLEAN DEFAULT FALSE,
+    reply_message_id VARCHAR,
+    duration INTEGER DEFAULT 0,
+    provider VARCHAR DEFAULT 'go-whatsapp',
+    campaign_id VARCHAR,
+    chunk_id VARCHAR,
+    queue_status VARCHAR DEFAULT 'pending',
+    status VARCHAR DEFAULT 'pending',
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    sent_at TIMESTAMP WITH TIME ZONE,
+    message_id VARCHAR,
+    api_response JSONB,
+    error_message TEXT
+);
+
+CREATE TABLE campaigns (
+    id VARCHAR PRIMARY KEY,
+    token VARCHAR UNIQUE NOT NULL,
+    status VARCHAR DEFAULT 'pending',
+    message_type VARCHAR NOT NULL,
+    total_chunks INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE chunks (
+    id VARCHAR PRIMARY KEY,
+    campaign_id VARCHAR NOT NULL REFERENCES campaigns(id),
+    recipients JSONB NOT NULL,
+    status VARCHAR DEFAULT 'pending',
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    error_message TEXT
+);</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="function-reference" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-code"></i> Function Reference</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-list"></i> Comprehensive Function Index</h3>
+                            <p>This catalog lists the primary functions currently present in the codebase, along with their defining files and responsibilities. The table is optimized for readability and responsive viewing across all devices.</p>
+                            <div class="table-container function-table-container">
+                                <table id="function-reference-table" class="function-table" style="width:100%">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Package</th>
+                                            <th>Receiver / Type</th>
+                                            <th>Function</th>
+                                            <th>File</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>1</td><td>main</td><td>&mdash;</td><td class="code">main</td><td>main.go</td><td>Entry point that invokes <span class="code">cmd.Execute</span>.</td></tr>
+                                        <tr><td>2</td><td>cmd</td><td>&mdash;</td><td class="code">Execute</td><td>cmd/root.go</td><td>Runs the Cobra root command and boots the CLI stack.</td></tr>
+                                        <tr><td>3</td><td>cmd</td><td>&mdash;</td><td class="code">GetSharedComponents</td><td>cmd/root.go</td><td>Returns initialized database, WhatsApp client, and worker processor.</td></tr>
+                                        <tr><td>4</td><td>cmd</td><td>&mdash;</td><td class="code">GetSharedComponentsWithRedis</td><td>cmd/root.go</td><td>Extends the shared components bundle by including the Redis client.</td></tr>
+                                        <tr><td>5</td><td>config</td><td>&mdash;</td><td class="code">LoadConfig</td><td>internal/config/config.go</td><td>Loads application configuration from environment variables, files, and defaults.</td></tr>
+                                        <tr><td>6</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">NewDirectPostgresDatabase</td><td>internal/database/direct_postgres.go</td><td>Constructs the PostgreSQL database implementation with connection pooling.</td></tr>
+                                        <tr><td>7</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">BatchStoreMessages</td><td>internal/database/direct_postgres.go</td><td>Stores multiple messages inside a single transaction for efficiency.</td></tr>
+                                        <tr><td>8</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">Close</td><td>internal/database/direct_postgres.go</td><td>Closes the database pool and releases associated resources.</td></tr>
+                                        <tr><td>9</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">EnsureSchema</td><td>internal/database/direct_postgres.go</td><td>Ensures the outgoing messages schema exists and is up to date.</td></tr>
+                                        <tr><td>10</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">FetchMessageByID</td><td>internal/database/direct_postgres.go</td><td>Fetches a single message record by identifier.</td></tr>
+                                        <tr><td>11</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">GetMessageStats</td><td>internal/database/direct_postgres.go</td><td>Aggregates message counts and metrics from the database.</td></tr>
+                                        <tr><td>12</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">HealthCheck</td><td>internal/database/direct_postgres.go</td><td>Verifies database connectivity with a lightweight query.</td></tr>
+                                        <tr><td>13</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">IncrementAttempts</td><td>internal/database/direct_postgres.go</td><td>Increments retry attempts and reports whether the message should retry.</td></tr>
+                                        <tr><td>14</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">RecoverStuckMessages</td><td>internal/database/direct_postgres.go</td><td>Moves stuck processing messages back to the pending queue.</td></tr>
+                                        <tr><td>15</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">StoreMessage</td><td>internal/database/direct_postgres.go</td><td>Persists a single outgoing message record.</td></tr>
+                                        <tr><td>16</td><td>database</td><td><span class="code">DirectPostgresDatabase</span></td><td class="code">UpdateMessageStatus</td><td>internal/database/direct_postgres.go</td><td>Updates the status and metadata for the given message.</td></tr>
+                                        <tr><td>17</td><td>models</td><td><span class="code">Message</span></td><td class="code">CanRetry</td><td>internal/models/message.go</td><td>Determines if the message can retry based on attempts and limits.</td></tr>
+                                        <tr><td>18</td><td>models</td><td><span class="code">Message</span></td><td class="code">IsStuck</td><td>internal/models/message.go</td><td>Detects whether a message is considered stuck in processing.</td></tr>
+                                        <tr><td>19</td><td>models</td><td><span class="code">Message</span></td><td class="code">IsValidQueueStatus</td><td>internal/models/message.go</td><td>Validates that a queue status value is supported.</td></tr>
+                                        <tr><td>20</td><td>models</td><td><span class="code">Message</span></td><td class="code">IsValidStatus</td><td>internal/models/message.go</td><td>Validates that a delivery status value is supported.</td></tr>
+                                        <tr><td>21</td><td>models</td><td><span class="code">Message</span></td><td class="code">ShouldRetry</td><td>internal/models/message.go</td><td>Decides if the message should retry given timing and attempts.</td></tr>
+                                        <tr><td>22</td><td>redis</td><td>&mdash;</td><td class="code">NewClient</td><td>internal/redis/client.go</td><td>Initializes a Redis client with stream configuration and health checks.</td></tr>
+                                        <tr><td>23</td><td>redis</td><td><span class="code">Client</span></td><td class="code">AckMessageStream</td><td>internal/redis/client.go</td><td>Acknowledges a processed stream entry for the consumer group.</td></tr>
+                                        <tr><td>24</td><td>redis</td><td><span class="code">Client</span></td><td class="code">ClearQueue</td><td>internal/redis/client.go</td><td>Clears the stream and consumer group state for a fresh queue.</td></tr>
+                                        <tr><td>25</td><td>redis</td><td><span class="code">Client</span></td><td class="code">Close</td><td>internal/redis/client.go</td><td>Closes the Redis client and releases resources.</td></tr>
+                                        <tr><td>26</td><td>redis</td><td><span class="code">Client</span></td><td class="code">CreateConsumerGroup</td><td>internal/redis/client.go</td><td>Creates the Redis stream and consumer group if missing.</td></tr>
+                                        <tr><td>27</td><td>redis</td><td><span class="code">Client</span></td><td class="code">GetClient</td><td>internal/redis/client.go</td><td>Exposes the underlying go-redis client instance.</td></tr>
+                                        <tr><td>28</td><td>redis</td><td><span class="code">Client</span></td><td class="code">GetQueueLength</td><td>internal/redis/client.go</td><td>Returns the current length of the message stream.</td></tr>
+                                        <tr><td>29</td><td>redis</td><td><span class="code">Client</span></td><td class="code">GetQueueStats</td><td>internal/redis/client.go</td><td>Collects Redis stream statistics and INFO metadata.</td></tr>
+                                        <tr><td>30</td><td>redis</td><td><span class="code">Client</span></td><td class="code">GetStreamLength</td><td>internal/redis/client.go</td><td>Returns the XLEN of the configured stream.</td></tr>
+                                        <tr><td>31</td><td>redis</td><td><span class="code">Client</span></td><td class="code">Ping</td><td>internal/redis/client.go</td><td>Performs a Redis PING to check connectivity.</td></tr>
+                                        <tr><td>32</td><td>redis</td><td><span class="code">Client</span></td><td class="code">PopMessageWithID</td><td>internal/redis/client.go</td><td>Reads a single entry from the stream via <span class="code">XREADGROUP</span>.</td></tr>
+                                        <tr><td>33</td><td>redis</td><td><span class="code">Client</span></td><td class="code">PushMessage</td><td>internal/redis/client.go</td><td>Appends message JSON to the stream and enforces max length.</td></tr>
+                                        <tr><td>34</td><td>redis</td><td><span class="code">Client</span></td><td class="code">PushMessageStream</td><td>internal/redis/client.go</td><td>Queues message payloads to the configured Redis stream.</td></tr>
+                                        <tr><td>35</td><td>redis</td><td><span class="code">Client</span></td><td class="code">ReclaimIdleMessages</td><td>internal/redis/client.go</td><td>Claims idle pending entries for this consumer for reprocessing.</td></tr>
+                                        <tr><td>36</td><td>redis</td><td><span class="code">Client</span></td><td class="code">TrimStream</td><td>internal/redis/client.go</td><td>Trims the stream to the configured maximum length.</td></tr>
+                                        <tr><td>37</td><td>server</td><td>&mdash;</td><td class="code">AuthMiddleware</td><td>internal/server/auth.go</td><td>Selects the appropriate auth middleware based on configuration.</td></tr>
+                                        <tr><td>38</td><td>server</td><td>&mdash;</td><td class="code">BasicAuthMiddleware</td><td>internal/server/auth.go</td><td>Wraps handlers with HTTP Basic authentication.</td></tr>
+                                        <tr><td>39</td><td>server</td><td>&mdash;</td><td class="code">NewServer</td><td>internal/server/server.go</td><td>Builds the HTTP server with dependencies and configuration.</td></tr>
+                                        <tr><td>40</td><td>server</td><td><span class="code">Server</span></td><td class="code">Start</td><td>internal/server/server.go</td><td>Starts the HTTP server on the configured address.</td></tr>
+                                        <tr><td>41</td><td>server</td><td><span class="code">Server</span></td><td class="code">Stop</td><td>internal/server/server.go</td><td>Gracefully shuts down the HTTP server.</td></tr>
+                                        <tr><td>42</td><td>services</td><td>&mdash;</td><td class="code">NewMessageService</td><td>internal/services/message_service.go</td><td>Constructs the message service with database and Redis dependencies.</td></tr>
+                                        <tr><td>43</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">GetQueueStats</td><td>internal/services/message_service.go</td><td>Returns Redis queue statistics through the service layer.</td></tr>
+                                        <tr><td>44</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">HealthCheck</td><td>internal/services/message_service.go</td><td>Checks both database and Redis health.</td></tr>
+                                        <tr><td>45</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">ProcessWhatsAppFile</td><td>internal/services/message_service.go</td><td>Queues a WhatsApp file send job for processing.</td></tr>
+                                        <tr><td>46</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">ProcessWhatsAppFileBulk</td><td>internal/services/message_service.go</td><td>Expands a single file request across multiple recipients.</td></tr>
+                                        <tr><td>47</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">ProcessWhatsAppMedia</td><td>internal/services/message_service.go</td><td>Queues WhatsApp media (image/video) for processing.</td></tr>
+                                        <tr><td>48</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">ProcessWhatsAppMediaBulk</td><td>internal/services/message_service.go</td><td>Expands a media request across multiple recipients.</td></tr>
+                                        <tr><td>49</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">ProcessWhatsAppMessage</td><td>internal/services/message_service.go</td><td>Queues a WhatsApp text message for processing.</td></tr>
+                                        <tr><td>50</td><td>services</td><td><span class="code">MessageService</span></td><td class="code">ProcessWhatsAppMessageBulk</td><td>internal/services/message_service.go</td><td>Expands a text request across multiple recipients.</td></tr>
+                                        <tr><td>51</td><td>utils</td><td>&mdash;</td><td class="code">NewFileStorage</td><td>internal/utils/file_storage.go</td><td>Initializes helper utilities for storing temporary files.</td></tr>
+                                        <tr><td>52</td><td>utils</td><td><span class="code">FileStorage</span></td><td class="code">CleanupOldFiles</td><td>internal/utils/file_storage.go</td><td>Removes files older than the configured retention window.</td></tr>
+                                        <tr><td>53</td><td>utils</td><td><span class="code">FileStorage</span></td><td class="code">DeleteFile</td><td>internal/utils/file_storage.go</td><td>Deletes a file from the temporary storage directory.</td></tr>
+                                        <tr><td>54</td><td>utils</td><td><span class="code">FileStorage</span></td><td class="code">FileExists</td><td>internal/utils/file_storage.go</td><td>Checks whether a given file exists in storage.</td></tr>
+                                        <tr><td>55</td><td>utils</td><td><span class="code">FileStorage</span></td><td class="code">GetFileSize</td><td>internal/utils/file_storage.go</td><td>Returns the size of a stored file.</td></tr>
+                                        <tr><td>56</td><td>utils</td><td><span class="code">FileStorage</span></td><td class="code">StoreFile</td><td>internal/utils/file_storage.go</td><td>Stores an uploaded file and returns its path.</td></tr>
+                                        <tr><td>57</td><td>whatsapp</td><td>&mdash;</td><td class="code">NewClient</td><td>internal/whatsapp/client.go</td><td>Creates the WhatsApp HTTP client for outbound calls.</td></tr>
+                                        <tr><td>58</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">Close</td><td>internal/whatsapp/client.go</td><td>Closes idle connections associated with the client.</td></tr>
+                                        <tr><td>59</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">GetBaseURL</td><td>internal/whatsapp/client.go</td><td>Returns the configured WhatsApp API base URL.</td></tr>
+                                        <tr><td>60</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">HealthCheck</td><td>internal/whatsapp/client.go</td><td>Calls the WhatsApp API health endpoint.</td></tr>
+                                        <tr><td>61</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">SendFile</td><td>internal/whatsapp/client.go</td><td>Sends a document or file message via the WhatsApp API.</td></tr>
+                                        <tr><td>62</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">SendImage</td><td>internal/whatsapp/client.go</td><td>Sends an image message via the WhatsApp API.</td></tr>
+                                        <tr><td>63</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">SendMessage</td><td>internal/whatsapp/client.go</td><td>Sends a text message via the WhatsApp API.</td></tr>
+                                        <tr><td>64</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">SendMessageWithTyping</td><td>internal/whatsapp/client.go</td><td>Simulates typing before sending a text message.</td></tr>
+                                        <tr><td>65</td><td>whatsapp</td><td><span class="code">Client</span></td><td class="code">SendTypingPresence</td><td>internal/whatsapp/client.go</td><td>Sends a typing presence signal to the chat.</td></tr>
+                                        <tr><td>66</td><td>worker</td><td>&mdash;</td><td class="code">NewHealthMonitor</td><td>internal/worker/health_monitor.go</td><td>Initializes the health monitor scheduler for the worker.</td></tr>
+                                        <tr><td>67</td><td>worker</td><td>&mdash;</td><td class="code">NewProcessor</td><td>internal/worker/processor.go</td><td>Creates the Redis-backed message processor.</td></tr>
+                                        <tr><td>68</td><td>worker</td><td>&mdash;</td><td class="code">NewRateLimiter</td><td>internal/worker/rate_limiter.go</td><td>Creates the rate limiter with configured delay ranges.</td></tr>
+                                        <tr><td>69</td><td>worker</td><td><span class="code">HealthMonitor</span></td><td class="code">GetCron</td><td>internal/worker/health_monitor.go</td><td>Returns the underlying cron scheduler instance.</td></tr>
+                                        <tr><td>70</td><td>worker</td><td><span class="code">HealthMonitor</span></td><td class="code">Start</td><td>internal/worker/health_monitor.go</td><td>Starts the health monitor cron job.</td></tr>
+                                        <tr><td>71</td><td>worker</td><td><span class="code">HealthMonitor</span></td><td class="code">Stop</td><td>internal/worker/health_monitor.go</td><td>Stops the health monitor cron job.</td></tr>
+                                        <tr><td>72</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">CheckHealth</td><td>internal/worker/processor.go</td><td>Runs processor health checks for WhatsApp and the database.</td></tr>
+                                        <tr><td>73</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">GetMessageStats</td><td>internal/worker/processor.go</td><td>Retrieves aggregated message stats for dashboards.</td></tr>
+                                        <tr><td>74</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">GetStats</td><td>internal/worker/processor.go</td><td>Returns in-memory processing statistics.</td></tr>
+                                        <tr><td>75</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">HealthCheck</td><td>internal/worker/processor.go</td><td>Checks WhatsApp and database health via the processor.</td></tr>
+                                        <tr><td>76</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">ProcessMessages</td><td>internal/worker/processor.go</td><td>Primary loop that consumes messages from Redis streams.</td></tr>
+                                        <tr><td>77</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">RecoverStuckMessages</td><td>internal/worker/processor.go</td><td>Recovers stuck messages using the configured timeout.</td></tr>
+                                        <tr><td>78</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">Start</td><td>internal/worker/processor.go</td><td>Starts message processing by delegating to <span class="code">ProcessMessages</span>.</td></tr>
+                                        <tr><td>79</td><td>worker</td><td><span class="code">Processor</span></td><td class="code">Stop</td><td>internal/worker/processor.go</td><td>Logs that processor shutdown has been requested.</td></tr>
+                                        <tr><td>80</td><td>worker</td><td><span class="code">RateLimiter</span></td><td class="code">GetMessageDelay</td><td>internal/worker/rate_limiter.go</td><td>Calculates the delay between outbound messages.</td></tr>
+                                        <tr><td>81</td><td>worker</td><td><span class="code">RateLimiter</span></td><td class="code">GetNaturalBreakDelay</td><td>internal/worker/rate_limiter.go</td><td>Calculates natural break durations for conversation pacing.</td></tr>
+                                        <tr><td>82</td><td>worker</td><td><span class="code">RateLimiter</span></td><td class="code">GetTypingDelay</td><td>internal/worker/rate_limiter.go</td><td>Calculates typing delay durations.</td></tr>
+                                        <tr><td>83</td><td>worker</td><td><span class="code">RateLimiter</span></td><td class="code">WaitForNextMessage</td><td>internal/worker/rate_limiter.go</td><td>Sleeps until the next message should be processed.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="performance" class="section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-tachometer-alt"></i> Performance & Scalability</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="subsection">
+                            <h3><i class="fas fa-chart-line"></i> Benchmark Results</h3>
+                            <p>Performance characteristics under various loads:</p>
+                            
+                            <div class="card-grid">
+                                <div class="card">
+                                    <h4><i class="fas fa-user"></i> Single Instance</h4>
+                                    <p>1,000+ messages/minute with default configuration</p>
+                                    <p>Sub-500ms processing time per message</p>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-users"></i> Horizontal Scaling</h4>
+                                    <p>Linear scalability with multiple workers</p>
+                                    <p>No performance degradation up to 10 concurrent workers</p>
+                                </div>
+                                
+                                <div class="card">
+                                    <h4><i class="fas fa-microchip"></i> Resource Usage</h4>
+                                    <p>&lt;100MB RAM per worker instance</p>
+                                    <p>&lt;5% CPU utilization under normal load</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-cogs"></i> Optimization Strategies</h3>
+                            <ul>
+                                <li><strong>Connection Pooling:</strong> Efficient database and Redis connection reuse</li>
+                                <li><strong>Asynchronous Processing:</strong> Non-blocking operations for maximum throughput</li>
+                                <li><strong>Memory Management:</strong> Optimized data structures and garbage collection</li>
+                                <li><strong>Caching:</strong> Strategic caching of frequently accessed data</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="subsection">
+                            <h3><i class="fas fa-expand-arrows-alt"></i> Scalability Guidelines</h3>
+                            <p>Recommendations for handling increased load:</p>
+                            
+                            <ol>
+                                <li><strong>Horizontal Scaling:</strong> Add more worker instances to process messages in parallel</li>
+                                <li><strong>Database Optimization:</strong> Ensure proper indexing and connection pooling</li>
+                                <li><strong>Redis Configuration:</strong> Increase memory and connection limits as needed</li>
+                                <li><strong>Rate Limiting:</strong> Adjust rate limiting parameters to match API quotas</li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+            </main>
+            
+            <footer>
+                <p>Go-WhatsApp Worker System Documentation</p>
+                <p>Generated on 26 September 2025</p>
+            </footer>
+        </div>
+    </div>
+    
+    <!-- Back to Top Button -->
+    <div class="back-to-top" id="backToTop">
+        <i class="fas fa-arrow-up"></i>
+    </div>
+    
+    <script>
+        // DOM Ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Navigation highlighting - only for sidebar nav items
+            const navLinks = document.querySelectorAll('.sidebar .nav-item');
+            const sections = document.querySelectorAll('section');
+            
+            // Set active nav item
+            function setActiveNav() {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 100) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').substring(1) === current) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+            
+            // Smooth scrolling for navigation links - only for sidebar nav items
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetSection = document.getElementById(targetId);
+                    if (targetSection) {
+                        window.scrollTo({
+                            top: targetSection.offsetTop - 80,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+            
+            // Update active nav on scroll
+            window.addEventListener('scroll', setActiveNav);
+            
+            // Initialize active nav
+            setActiveNav();
+
+            // Simple table functionality for function reference
+            const functionTable = document.getElementById('function-reference-table');
+            if (functionTable) {
+                // Add hover effects and basic interactivity
+                const rows = functionTable.querySelectorAll('tbody tr');
+                rows.forEach((row, index) => {
+                    // Add row numbers
+                    const firstCell = row.querySelector('td:first-child');
+                    if (firstCell) {
+                        firstCell.textContent = index + 1;
+                    }
+                    
+                    // Add hover effect
+                    row.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = 'rgba(67, 97, 238, 0.05)';
+                    });
+                    
+                    row.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = '';
+                    });
+                });
+            }
+            
+            // Back to top button
+            const backToTopButton = document.getElementById('backToTop');
+            
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 300) {
+                    backToTopButton.classList.add('visible');
+                } else {
+                    backToTopButton.classList.remove('visible');
+                }
+            });
+            
+            backToTopButton.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Copy button functionality
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            copyButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const codeBlock = this.closest('.code-block').querySelector('pre');
+                    const text = codeBlock.textContent;
+                    
+                    navigator.clipboard.writeText(text).then(() => {
+                        const originalText = this.textContent;
+                        this.textContent = 'Copied!';
+                        this.classList.add('copied');
+                        
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                            this.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+            });
+            
+            // Search functionality
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const sections = document.querySelectorAll('section');
+                
+                sections.forEach(section => {
+                    const text = section.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        section.style.display = 'block';
+                    } else {
+                        section.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

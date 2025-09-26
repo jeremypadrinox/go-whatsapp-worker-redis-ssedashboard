@@ -1,0 +1,200 @@
+openapi: 3.0.3
+info:
+  title: Go-WhatsApp Worker API
+  description: REST API for queuing WhatsApp messages (text, image, file). Jobs are processed asynchronously by workers and sent to the external WhatsApp API.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+    description: Local server
+security:
+  - basicAuth: []
+paths:
+  /api/send/message:
+    post:
+      summary: Queue text message(s)
+      description: Accepts a single or comma-separated list of phone numbers to queue text messages.
+      operationId: sendText
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendTextRequest'
+            examples:
+              single:
+                value:
+                  phone: "6281378887612"
+                  message: "Hello world"
+              bulk:
+                value:
+                  phone: "6281378887612,6281234567891"
+                  message: "Bulk hello"
+      responses:
+        '200':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal error
+  /api/send/image:
+    post:
+      summary: Queue image message(s)
+      description: Accepts multipart form-data. Provide either image file or image_url. Supports comma-separated phone for bulk.
+      operationId: sendImage
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: Single phone or comma-separated list
+                  example: "6281378887612,6281234567891"
+                caption:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+                image_url:
+                  type: string
+                  format: uri
+                view_once:
+                  type: boolean
+                compress:
+                  type: boolean
+                is_forwarded:
+                  type: boolean
+                reply_message_id:
+                  type: string
+                duration:
+                  type: integer
+              anyOf:
+                - required: [phone, image]
+                - required: [phone, image_url]
+      responses:
+        '200':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal error
+  /api/send/file:
+    post:
+      summary: Queue file document(s)
+      description: Accepts multipart form-data with file. Supports comma-separated phone for bulk.
+      operationId: sendFile
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [phone, file]
+              properties:
+                phone:
+                  type: string
+                  description: Single phone or comma-separated list
+                  example: "6281378887612"
+                caption:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+                is_forwarded:
+                  type: boolean
+                reply_message_id:
+                  type: string
+                duration:
+                  type: integer
+      responses:
+        '200':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal error
+  /api/statistics/stream:
+    get:
+      summary: Statistics stream (SSE)
+      description: Server-Sent Events stream with worker, database, and Redis statistics.
+      operationId: statsStream
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"worker":{"messages_processed":10,"messages_sent":9,"messages_failed":1}}
+        '401':
+          description: Unauthorized
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    SendTextRequest:
+      type: object
+      required: [phone, message]
+      properties:
+        phone:
+          type: string
+          description: Single phone or comma-separated list
+          example: "6281378887612"
+        message:
+          type: string
+        reply_message_id:
+          type: string
+        is_forwarded:
+          type: boolean
+        duration:
+          type: integer
+          description: Disappearing message duration in seconds
+    MessageResponseData:
+      type: object
+      properties:
+        message_id:
+          type: string
+        status:
+          type: string
+    SendMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/MessageResponseData'
+        error:
+          type: string

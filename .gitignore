@@ -1,0 +1,72 @@
+# Environment files - exclude .env but keep .env.example
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+!.env.example
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Go module cache
+go.sum
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+tmp/
+temp/
+
+# Docker
+.dockerignore
+
+# Air (Go live reload) - if using .air.toml
+.air.toml
+
+# Cursor IDE
+.cursor/
+
+# Build directories
+build/
+dist/
+bin/
+
+# Coverage reports
+*.cover
+*.coverprofile
+coverage.out
+coverage.html
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*.old
