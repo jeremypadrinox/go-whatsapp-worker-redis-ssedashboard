@@ -1,55 +1,15 @@
-version: '3.8'
-
 services:
   gowhatsapp-worker:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gowhatsapp-worker
     restart: unless-stopped
     ports:
       - "8081:8081"
-    environment:
-      - DATABASE_HOST=${DATABASE_HOST}
-      - DATABASE_PORT=${DATABASE_PORT:-6543}
-      - DATABASE_NAME=${DATABASE_NAME:-postgres}
-      - DATABASE_USER=${DATABASE_USER}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
-      - DATABASE_SSL_MODE=${DATABASE_SSL_MODE:-require}
-      - WHATSAPP_BASE_URL=${WHATSAPP_BASE_URL}
-      - WHATSAPP_AUTH=${WHATSAPP_AUTH}
-      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-10}
-      - WORKER_BATCH_SIZE=${WORKER_BATCH_SIZE:-50}
-      - WORKER_POLL_INTERVAL=${WORKER_POLL_INTERVAL:-3s}
-      - WORKER_MAX_RETRIES=${WORKER_MAX_RETRIES:-3}
-      - RATE_LIMIT_MIN_MESSAGES=${RATE_LIMIT_MIN_MESSAGES:-6}
-      - RATE_LIMIT_MAX_MESSAGES=${RATE_LIMIT_MAX_MESSAGES:-14}
-      - RATE_LIMIT_DELAY_MIN=${RATE_LIMIT_DELAY_MIN:-2s}
-      - RATE_LIMIT_DELAY_MAX=${RATE_LIMIT_DELAY_MAX:-5s}
-      - TYPING_DELAY_MIN=${TYPING_DELAY_MIN:-1s}
-      - TYPING_DELAY_MAX=${TYPING_DELAY_MAX:-3s}
-      - NATURAL_BREAK_INTERVAL=${NATURAL_BREAK_INTERVAL:-50}
-      - NATURAL_BREAK_DURATION_MIN=${NATURAL_BREAK_DURATION_MIN:-30s}
-      - NATURAL_BREAK_DURATION_MAX=${NATURAL_BREAK_DURATION_MAX:-1m}
-      - HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-24h}
-      - STUCK_MESSAGE_TIMEOUT=${STUCK_MESSAGE_TIMEOUT:-5m}
-      - API_HOST=0.0.0.0
-      - API_PORT=8081
-      - ENABLE_CORS=${ENABLE_CORS:-true}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - ENABLE_AUTH=${ENABLE_AUTH:-false}
-      - AUTH_TYPE=${AUTH_TYPE:-basic}
-      - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
-      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
-      - DASHBOARD_REALM=${DASHBOARD_REALM:-Go-WhatsApp Worker Dashboard}
+    env_file:
+      - .env
     volumes:
       - logs:/app/logs
-    networks:
-      - gowhatsapp-network
-
-networks:
-  gowhatsapp-network:
-    driver: bridge
 
 volumes:
   logs:
