@@ -39,6 +39,7 @@ Go-WhatsApp Worker is the orchestration brain that sits behind your WhatsApp aut
 
 ## Highlights
 
+- **Smart Endpoint Rotation**: Circuit breaker pattern with automatic failure detection and recovery for multiple WhatsApp endpoints.
 - Human-paced engine with typing simulation, rate profiles, natural breaks, and exponential backoff.
 - Redis Streams consumer groups with delayed retries, idle message reclaiming, and horizontal fan-out.
 - Chunked campaign coordinator that safely handles tens of thousands of recipients per request.
@@ -57,6 +58,7 @@ Go-WhatsApp Worker is the orchestration brain that sits behind your WhatsApp aut
 | **Bulk Handling** | Automatic chunk splitting, resumable campaigns via tokens, chunk status tracking |
 | **Queue Engine** | Redis Streams + scheduled ZSet retries, consumer groups, idle message reclaim |
 | **Rate Limiting** | Manual & bulk profiles, typing delays, burst cooldowns, configurable jitter |
+| **Smart Load Balancing** | Circuit breaker pattern, automatic endpoint failover, health-aware routing |
 | **Observability** | Structured logrus logs, dashboard charts, queue stats, database metrics |
 | **Reliability** | Exponential retries, stuck message watchdog, delayed requeue, health probes |
 | **Security** | Auth middleware, strict file validation, temporary storage isolation |
@@ -71,10 +73,14 @@ Go-WhatsApp Worker is the orchestration brain that sits behind your WhatsApp aut
 flowchart LR
     API["REST API & Dashboard\n(Cobra + net/http)"] -->|enqueue| Queue[(Redis Stream\npending_messages)]
     Queue --> WorkerPool["Worker Processor\n(rate limiter + retries)"]
-    WorkerPool --> WhatsApp["go-whatsapp-web-multidevice\nHTTP API"]
+    WorkerPool --> LoadBalancer["Smart Load Balancer\n(Circuit Breaker Pattern)"]
+    LoadBalancer --> WhatsApp1["Endpoint 1\n(go-whatsapp-web-multidevice)"]
+    LoadBalancer --> WhatsApp2["Endpoint 2\n(go-whatsapp-web-multidevice)"]
+    LoadBalancer --> WhatsApp3["Endpoint 3\n(go-whatsapp-web-multidevice)"]
     WorkerPool --> DB[(PostgreSQL\nmessage history)]
     WorkerPool --> Storage["Temp File Storage\n(tmp/)"]
     Health["Health Monitor\ncron + SSE"] --> WorkerPool
+    Health --> LoadBalancer
     Health --> Queue
 ```
 
@@ -83,10 +89,11 @@ flowchart LR
 1. **Ingress** – An authenticated request hits `/api/send/...`. Uploads stream directly into `tmp/` using constant memory.
 2. **Campaign planning** – Bulk requests are split into `BULK_CHUNK_SIZE` slices. Campaign + chunk records persist in PostgreSQL with UUID tokens.
 3. **Queueing** – Each message becomes a JSON payload in Redis Streams (`XADD`) plus metadata in the database.
-4. **Processing** – Worker goroutines use `XREADGROUP` to claim work, simulate typing, call the WhatsApp API, and mark results.
-5. **Retry & delay** – Failures increment attempts, schedule exponential backoff (via sorted set), or mark the message as permanently failed.
-6. **Cleanup** – Successful (or definitively failed) media triggers immediate file deletion along with hourly sweeps.
-7. **Metrics** – Statistics stream to `/api/statistics/stream` and the dashboard updates live.
+4. **Processing** – Worker goroutines use `XREADGROUP` to claim work, simulate typing, and route through the smart load balancer.
+5. **Smart Routing** – Circuit breaker pattern automatically selects healthy endpoints, excludes failed ones, and handles automatic recovery.
+6. **Retry & delay** – Failures increment attempts, schedule exponential backoff (via sorted set), or mark the message as permanently failed.
+7. **Cleanup** – Successful (or definitively failed) media triggers immediate file deletion along with hourly sweeps.
+8. **Metrics** – Statistics stream to `/api/statistics/stream` and the dashboard updates live with circuit breaker status.
 
 ## Quick Start
 
@@ -144,11 +151,18 @@ Use this mode to add more queue consumers while keeping a single API instance.
 | `DATABASE_USER` / `DATABASE_PASSWORD` | ✅ | – | Database credentials |
 | `WHATSAPP_BASE_URL` | ✅ | – | Base URL of `go-whatsapp-web-multidevice` |
 | `WHATSAPP_AUTH` | ✅ | – | API token for the sender |
+| `WHATSAPP_ENDPOINTS` | – | – | Comma-separated URLs for multi-endpoint load balancing |
+| `WHATSAPP_AUTHS` | – | – | Comma-separated auth tokens for multi-endpoint setup |
 | `REDIS_HOST` | ✅ | `localhost` | Redis Streams host |
 | `REDIS_QUEUE_NAME` | – | `pending_messages` | Stream key for enqueued messages |
 | `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` | ✅ (if auth enabled) | `admin` / `admin` | Basic Auth credentials |
 | `RATE_PROFILE` | – | `manual` | Switch between manual and bulk pacing strategies |
 | `BULK_CHUNK_SIZE` | – | `500` | Recipients per chunk when splitting bulk requests |
+| `CIRCUIT_BREAKER_ENABLED` | – | `true` | Enable/disable circuit breaker pattern |
+| `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | – | `3` | Failures before opening circuit |
+| `CIRCUIT_BREAKER_SUCCESS_THRESHOLD` | – | `2` | Successes to close circuit |
+| `CIRCUIT_BREAKER_OPEN_TIMEOUT` | – | `2m` | Cooldown before retry |
+| `CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT` | – | `30s` | Testing period duration |
 
 See `.env.example` or `internal/config/config.go` for the complete catalogue (Redis timeouts, natural breaks, SSE toggles, etc.).
 
@@ -168,10 +182,12 @@ All endpoints are protected by Basic Auth when `ENABLE_AUTH=true`.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/` | Dashboard + Message Playground |
+| `GET` | `/health` | Health check endpoint (unprotected) |
 | `POST` | `/api/send/message` | Queue a text message (bulk supported via comma-separated or JSON array) |
 | `POST` | `/api/send/image` | Queue an image (file upload or remote URL) |
 | `POST` | `/api/send/file` | Queue any attachment |
 | `GET` | `/api/statistics/stream` | Server-Sent Events stream with live KPIs |
+| `GET` | `/api/endpoints/stats` | Endpoint statistics with circuit breaker status |
 | `GET` | `/docs` | Interactive documentation portal |
 | `GET` | `/docs/openapi.yml` | Machine-readable OpenAPI spec |
 
@@ -186,6 +202,40 @@ Full request/response examples live in `docs/endpoint.md` and the dashboard’s 
 - Message Playground for text, image, and file flows with bulk support.
 - Live queue depth, throughput, retry and failure counters via SSE.
 - Embedded API docs, configuration hints, and quick links to metrics.
+
+## Smart Endpoint Rotation
+
+The system now includes intelligent endpoint management with circuit breaker pattern for maximum reliability:
+
+### Circuit Breaker States
+- **CLOSED (Healthy)**: Endpoint accepts messages normally
+- **OPEN (Failed)**: Endpoint excluded from rotation for cooldown period  
+- **HALF_OPEN (Testing)**: Endpoint being tested for recovery
+
+### Automatic Failure Detection
+- **Critical Failures**: HTTP 401/403 (user logout) trigger immediate circuit opening
+- **Threshold Failures**: 3 consecutive failures open the circuit
+- **Smart Recovery**: Gradual testing with 2 successful messages required to close circuit
+
+### Configuration
+```bash
+# Circuit Breaker Settings
+CIRCUIT_BREAKER_ENABLED=true
+CIRCUIT_BREAKER_FAILURE_THRESHOLD=3     # Failures before opening
+CIRCUIT_BREAKER_SUCCESS_THRESHOLD=2     # Successes to close
+CIRCUIT_BREAKER_OPEN_TIMEOUT=2m         # Cooldown before retry
+CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT=30s   # Testing period
+
+# Multi-Endpoint Configuration
+WHATSAPP_ENDPOINTS=https://wa1.example.com,https://wa2.example.com,https://wa3.example.com
+WHATSAPP_AUTHS=auth_token_1,auth_token_2,auth_token_3
+```
+
+### Benefits
+- **Zero Wasted Retries**: No attempts on known-bad endpoints
+- **Maintained Throughput**: Automatic failover to healthy endpoints
+- **WhatsApp Account Safety**: Respectful retry intervals and backoff
+- **Real-Time Monitoring**: Dashboard shows circuit breaker states
 
 ## Bulk Campaign Engine
 
@@ -203,8 +253,9 @@ Full request/response examples live in `docs/endpoint.md` and the dashboard’s 
 - Redis Streams consumer group (`workers`) with individual `REDIS_CONSUMER_NAME` per instance.
 - Idle (stuck) messages are reclaimed via `XCLAIM` if they exceed `STUCK_MESSAGE_TIMEOUT`.
 - Exponential backoff up to 5 minutes per retry, capped by `WORKER_MAX_RETRIES`.
-- Health monitor cron checks database, Redis, queue lag, and worker stats, logging warnings before failure.
+- Health monitor cron checks database, Redis, queue lag, worker stats, and circuit breaker states.
 - Natural typing presence toggles emulate human behaviour before each send request.
+- Circuit breaker monitoring with automatic alerting for endpoint failures and recovery.
 
 ## File Handling Guarantees
 
@@ -225,7 +276,7 @@ gowhatsapp-worker/
 │   ├── services/        # Message orchestration and campaign logic
 │   ├── server/          # HTTP server, templates, auth middleware
 │   ├── worker/          # Processor, rate limiter, health monitor
-│   └── whatsapp/        # HTTP client for go-whatsapp-web-multidevice
+│   └── whatsapp/        # HTTP client, load balancer, circuit breaker
 ├── docs/                # Endpoint cheatsheet, OpenAPI, architecture docs
 ├── public/              # Marketing & dashboard screenshots
 └── tmp/                 # Runtime artifacts (ignored)
@@ -253,6 +304,9 @@ The repository ships with `.air.toml` for hot reloading if you prefer iterative 
 - **Media not delivered** – ensure `go-whatsapp-web-multidevice` instance accepts file endpoints and file type.
 - **High failure rate** – check dashboard statistics and consider increasing backoff.
 - **Dashboard auth fails** – change credentials via `DASHBOARD_USERNAME`/`PASSWORD` and restart.
+- **All endpoints failing** – check circuit breaker states in dashboard; verify WhatsApp session authentication.
+- **Circuit breaker not opening** – ensure `CIRCUIT_BREAKER_ENABLED=true` and check failure thresholds.
+- **Endpoint recovery issues** – verify `CIRCUIT_BREAKER_SUCCESS_THRESHOLD` and timeout settings.
 
 See `docs/system-documentation.html` for an in-depth operations guide.
 
@@ -295,4 +349,4 @@ Built with ❤️ by automation enthusiasts. Contributions are welcome—open an
 
 ---
 
-*Last updated: September 26, 2025*
+*Last updated: Oktober 2025*

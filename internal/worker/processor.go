@@ -24,7 +24,7 @@ type Processor struct {
 	config      *config.Config
 	db          database.DatabaseInterface
 	redis       *redis.Client
-	whatsapp    *whatsapp.Client
+	whatsapp    whatsapp.MessageSender
 	rateLimiter *RateLimiter
 	logger      *logrus.Logger
 	stats       *ProcessingStats
@@ -63,7 +63,7 @@ type RedisMessage struct {
 	MaxAttempts    int       `json:"max_attempts,omitempty"`
 }
 
-func NewProcessor(cfg *config.Config, db database.DatabaseInterface, redisClient *redis.Client, wa *whatsapp.Client, logger *logrus.Logger) *Processor {
+func NewProcessor(cfg *config.Config, db database.DatabaseInterface, redisClient *redis.Client, wa whatsapp.MessageSender, logger *logrus.Logger) *Processor {
 	poolSize := 1
 	if cfg.RateProfile == "bulk" {
 		poolSize = cfg.WorkerConcurrency

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gowhatsapp-worker/internal/config"
+	"gowhatsapp-worker/internal/whatsapp"
 
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
@@ -117,6 +118,11 @@ func (hm *HealthMonitor) Stop() {
 func (hm *HealthMonitor) performHealthCheck() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	// Check circuit breaker states
+	if lb, ok := hm.processor.whatsapp.(*whatsapp.LoadBalancer); ok {
+		hm.checkCircuitBreakerStates(lb)
+	}
 
 	if err := hm.processor.HealthCheck(ctx); err != nil {
 		hm.logger.WithError(err).Error("Health check failed")
@@ -239,4 +245,39 @@ func (hm *HealthMonitor) reclaimIdleStreamMessages(ctx context.Context, minIdle 
 	}).Info("Reclaimed idle stream messages")
 
 	return nil
+}
+
+func (hm *HealthMonitor) checkCircuitBreakerStates(lb *whatsapp.LoadBalancer) {
+	endpoints := lb.GetEndpoints()
+	openCount := 0
+	
+	for i, endpoint := range endpoints {
+		state := lb.GetCircuitBreakerState(i)
+		if state == whatsapp.StateOpen {
+			openCount++
+			hm.logger.WithFields(logrus.Fields{
+				"endpoint": endpoint,
+				"state":    "open",
+			}).Warn("Endpoint circuit breaker is open")
+		}
+	}
+	
+	if openCount >= len(endpoints) {
+		hm.alertManager.triggerAlert(
+			"all_endpoints_down",
+			"endpoints",
+			"critical",
+			"All WhatsApp endpoints have failed circuit breakers",
+		)
+	} else if openCount > 0 {
+		hm.alertManager.triggerAlert(
+			"endpoint_degraded",
+			"endpoints",
+			"warning",
+			fmt.Sprintf("%d/%d endpoints unavailable", openCount, len(endpoints)),
+		)
+	} else {
+		hm.alertManager.resolveAlert("all_endpoints_down")
+		hm.alertManager.resolveAlert("endpoint_degraded")
+	}
 }

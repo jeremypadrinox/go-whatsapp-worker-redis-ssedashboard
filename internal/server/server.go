@@ -25,7 +25,7 @@ import (
 type Server struct {
 	config         *config.Config
 	db             database.DatabaseInterface
-	whatsappClient *whatsapp.Client
+	whatsappClient whatsapp.MessageSender
 	processor      *worker.Processor
 	messageService *services.MessageService
 	redisClient    *redis.Client
@@ -40,7 +40,7 @@ type Server struct {
 func NewServer(
 	cfg *config.Config,
 	db database.DatabaseInterface,
-	wa *whatsapp.Client,
+	wa whatsapp.MessageSender,
 	proc *worker.Processor,
 	msgSvc *services.MessageService,
 	redisClient *redis.Client,
@@ -113,6 +113,9 @@ func (s *Server) setupRoutes(mux *http.ServeMux) {
 		s.config.DashboardRealm,
 	)
 
+	// Health check endpoint (unprotected)
+	mux.HandleFunc("/health", s.handleHealth)
+
 	mux.HandleFunc("/", authMiddleware(s.handleMainInterface))
 	mux.HandleFunc("/dashboard", authMiddleware(s.handleDashboard))
 
@@ -121,6 +124,7 @@ func (s *Server) setupRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/send/file", authMiddleware(s.handleAPISendFile))
 
 	mux.HandleFunc("/api/statistics/stream", authMiddleware(s.handleAPIStatisticsStream))
+	mux.HandleFunc("/api/endpoints/stats", authMiddleware(s.handleEndpointStats))
 
 	mux.HandleFunc("/docs", authMiddleware(s.handleDocumentation))
 	mux.HandleFunc("/docs/openapi.yml", authMiddleware(s.handleOpenAPISpec))
@@ -2119,7 +2123,14 @@ func (s *Server) loadTemplates() error {
                     </div>
                 </div>
 
-
+                <h2 class="section-title">🌐 Endpoint Statistics</h2>
+                <div class="stats-grid" id="endpointStats">
+                    <div class="stat-card">
+                        <h3>Loading...</h3>
+                        <div class="value">Fetching endpoint data</div>
+                        <small>Please wait</small>
+                    </div>
+                </div>
 
                  				<div class="controls">
 					<button class="refresh-btn" onclick="startManualRefresh()">
@@ -2304,6 +2315,7 @@ func (s *Server) loadTemplates() error {
         function startManualRefresh() {
             __manualRefresh = true;
             startStatsStream();
+            loadEndpointStats();
         }
 
         let updateInterval;
@@ -2318,6 +2330,7 @@ func (s *Server) loadTemplates() error {
 
              __manualRefresh = false;
              startStatsStream();
+             loadEndpointStats();
         });
 
           function formatDuration(durationStr) {
@@ -2355,6 +2368,69 @@ func (s *Server) loadTemplates() error {
               }
           }
           
+          function loadEndpointStats() {
+              fetch('/api/endpoints/stats')
+                  .then(response => response.json())
+                  .then(data => {
+                      const container = document.getElementById('endpointStats');
+                      if (!container) return;
+                      
+                      if (data.endpoints && data.endpoints.length > 0) {
+                          container.innerHTML = data.endpoints.map(endpoint => {
+                              const url = endpoint.url || 'Unknown';
+                              const sent = endpoint.messages_sent || 0;
+                              const failed = endpoint.messages_failed || 0;
+                              const successRate = endpoint.success_rate || 0;
+                              const avgResponseTime = endpoint.avg_response_time || 0;
+                              const lastUsed = endpoint.last_used ? new Date(endpoint.last_used).toLocaleString() : 'Never';
+                              
+                              return '<div class="stat-card">' +
+                                  '<h3>' + url + '</h3>' +
+                                  '<div class="value">' + sent + '</div>' +
+                                  '<small>Messages sent</small>' +
+                                  '</div>' +
+                                  '<div class="stat-card">' +
+                                  '<h3>Success Rate</h3>' +
+                                  '<div class="value">' + successRate.toFixed(1) + '%</div>' +
+                                  '<small>For ' + url + '</small>' +
+                                  '</div>' +
+                                  '<div class="stat-card">' +
+                                  '<h3>Failed</h3>' +
+                                  '<div class="value">' + failed + '</div>' +
+                                  '<small>For ' + url + '</small>' +
+                                  '</div>' +
+                                  '<div class="stat-card">' +
+                                  '<h3>Avg Response</h3>' +
+                                  '<div class="value">' + avgResponseTime + 'ms</div>' +
+                                  '<small>For ' + url + '</small>' +
+                                  '</div>' +
+                                  '<div class="stat-card">' +
+                                  '<h3>Last Used</h3>' +
+                                  '<div class="value" style="font-size: 0.8em;">' + lastUsed + '</div>' +
+                                  '<small>For ' + url + '</small>' +
+                                  '</div>';
+                          }).join('');
+                      } else {
+                          container.innerHTML = '<div class="stat-card">' +
+                              '<h3>Single Endpoint</h3>' +
+                              '<div class="value">Active</div>' +
+                              '<small>Using single WhatsApp endpoint</small>' +
+                              '</div>';
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Failed to load endpoint stats:', error);
+                      const container = document.getElementById('endpointStats');
+                      if (container) {
+                          container.innerHTML = '<div class="stat-card">' +
+                              '<h3>Error</h3>' +
+                              '<div class="value">Failed to load</div>' +
+                              '<small>Endpoint statistics unavailable</small>' +
+                              '</div>';
+                      }
+                  });
+          }
+
           function startStatsStream() {
 
 
@@ -3145,7 +3221,17 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleHealth serves a simple "OK" response for health checks, unprotected by auth.
-// (Removed) handleHealth and handleAPIStatistics endpoints
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Simple health check - just return OK
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok","service":"gowhatsapp-worker"}`))
+}
 
 // handleAPISendMessage handles WhatsApp message sending requests (text messages)
 func (s *Server) handleAPISendMessage(w http.ResponseWriter, r *http.Request) {
@@ -3586,4 +3672,32 @@ func (s *Server) handleSwagger(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Expires", "0")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(html))
+}
+
+// handleEndpointStats serves endpoint statistics for load balancer monitoring
+func (s *Server) handleEndpointStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get stats from load balancer
+	if lb, ok := s.whatsappClient.(*whatsapp.LoadBalancer); ok {
+		stats := lb.GetAllStats()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"endpoints": stats,
+		})
+	} else {
+		// Single endpoint
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"endpoints": []map[string]interface{}{{
+				"url":             "single-endpoint",
+				"messages_sent":   0,
+				"messages_failed": 0,
+				"success_rate":    100.0,
+			}},
+		})
+	}
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -20,7 +21,7 @@ var (
 	EnableHealthCheck   bool = true
 	HealthCheckInterval int  = 300
 
-	APIPort    string = "8081"
+	APIPort    string = "8084"
 	APIHost    string = "0.0.0.0"
 	EnableCORS bool   = true
 	APISecret  string
@@ -46,8 +47,10 @@ type Config struct {
 	DatabasePassword string `mapstructure:"DATABASE_PASSWORD"`
 	DatabaseSSLMode  string `mapstructure:"DATABASE_SSL_MODE"`
 
-	WhatsAppBaseURL string `mapstructure:"WHATSAPP_BASE_URL"`
-	WhatsAppAuth    string `mapstructure:"WHATSAPP_AUTH"`
+	WhatsAppBaseURL   string   `mapstructure:"WHATSAPP_BASE_URL"`
+	WhatsAppAuth      string   `mapstructure:"WHATSAPP_AUTH"`
+	WhatsAppEndpoints []string `mapstructure:"WHATSAPP_ENDPOINTS"`
+	WhatsAppAuths     []string `mapstructure:"WHATSAPP_AUTHS"`
 
 	WorkerConcurrency  int           `mapstructure:"WORKER_CONCURRENCY"`
 	WorkerBatchSize    int           `mapstructure:"WORKER_BATCH_SIZE"`
@@ -117,6 +120,13 @@ type Config struct {
 	RateBurstLimit         int           `mapstructure:"RATE_BURST_LIMIT"`
 	RateCooldownSeconds    int           `mapstructure:"RATE_COOLDOWN_SECONDS"`
 	BulkChunkSize int `mapstructure:"BULK_CHUNK_SIZE"`
+
+	// Circuit Breaker settings
+	CircuitBreakerEnabled          bool          `mapstructure:"CIRCUIT_BREAKER_ENABLED"`
+	CircuitBreakerFailureThreshold int           `mapstructure:"CIRCUIT_BREAKER_FAILURE_THRESHOLD"`
+	CircuitBreakerSuccessThreshold int           `mapstructure:"CIRCUIT_BREAKER_SUCCESS_THRESHOLD"`
+	CircuitBreakerOpenTimeout      time.Duration `mapstructure:"CIRCUIT_BREAKER_OPEN_TIMEOUT"`
+	CircuitBreakerHalfOpenTimeout  time.Duration `mapstructure:"CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -142,6 +152,24 @@ func LoadConfig() (*Config, error) {
 
 	config.WhatsAppBaseURL = viper.GetString("WHATSAPP_BASE_URL")
 	config.WhatsAppAuth = viper.GetString("WHATSAPP_AUTH")
+
+	// Parse multiple endpoints
+	endpointsStr := viper.GetString("WHATSAPP_ENDPOINTS")
+	authsStr := viper.GetString("WHATSAPP_AUTHS")
+
+	if endpointsStr != "" && authsStr != "" {
+		config.WhatsAppEndpoints = strings.Split(endpointsStr, ",")
+		config.WhatsAppAuths = strings.Split(authsStr, ",")
+		// Trim spaces
+		for i := range config.WhatsAppEndpoints {
+			config.WhatsAppEndpoints[i] = strings.TrimSpace(config.WhatsAppEndpoints[i])
+			config.WhatsAppAuths[i] = strings.TrimSpace(config.WhatsAppAuths[i])
+		}
+	} else {
+		// Fallback to single endpoint
+		config.WhatsAppEndpoints = []string{config.WhatsAppBaseURL}
+		config.WhatsAppAuths = []string{config.WhatsAppAuth}
+	}
 
 	config.WorkerConcurrency = viper.GetInt("WORKER_CONCURRENCY")
 	config.WorkerBatchSize = viper.GetInt("WORKER_BATCH_SIZE")
@@ -204,6 +232,13 @@ func LoadConfig() (*Config, error) {
 	config.RateCooldownSeconds = viper.GetInt("RATE_COOLDOWN_SECONDS")
 
 	config.BulkChunkSize = viper.GetInt("BULK_CHUNK_SIZE")
+
+	// Circuit Breaker configuration
+	config.CircuitBreakerEnabled = viper.GetBool("CIRCUIT_BREAKER_ENABLED")
+	config.CircuitBreakerFailureThreshold = viper.GetInt("CIRCUIT_BREAKER_FAILURE_THRESHOLD")
+	config.CircuitBreakerSuccessThreshold = viper.GetInt("CIRCUIT_BREAKER_SUCCESS_THRESHOLD")
+	config.CircuitBreakerOpenTimeout = viper.GetDuration("CIRCUIT_BREAKER_OPEN_TIMEOUT")
+	config.CircuitBreakerHalfOpenTimeout = viper.GetDuration("CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT")
 
 	if err := validateConfig(&config); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
@@ -272,7 +307,7 @@ func setDefaults() {
 	viper.SetDefault("DATABASE_SSL_MODE", "require")
 
 	viper.SetDefault("API_HOST", "0.0.0.0")
-	viper.SetDefault("API_PORT", "8081")
+	viper.SetDefault("API_PORT", "8084")
 
 	viper.SetDefault("ENABLE_CORS", true)
 	viper.SetDefault("ENABLE_API", true)
@@ -316,6 +351,13 @@ func setDefaults() {
 	viper.SetDefault("RATE_BURST_LIMIT", 20)
 	viper.SetDefault("RATE_COOLDOWN_SECONDS", 210)
 	viper.SetDefault("BULK_CHUNK_SIZE", 500)
+
+	// Circuit Breaker defaults
+	viper.SetDefault("CIRCUIT_BREAKER_ENABLED", true)
+	viper.SetDefault("CIRCUIT_BREAKER_FAILURE_THRESHOLD", 3)
+	viper.SetDefault("CIRCUIT_BREAKER_SUCCESS_THRESHOLD", 2)
+	viper.SetDefault("CIRCUIT_BREAKER_OPEN_TIMEOUT", "2m")
+	viper.SetDefault("CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT", "30s")
 }
 
 func validateConfig(config *Config) error {
@@ -340,6 +382,11 @@ func validateConfig(config *Config) error {
 	}
 	if config.WhatsAppAuth == "" {
 		return fmt.Errorf("WHATSAPP_AUTH is required")
+	}
+
+	// Validate multiple endpoints configuration
+	if len(config.WhatsAppEndpoints) != len(config.WhatsAppAuths) {
+		return fmt.Errorf("WHATSAPP_ENDPOINTS and WHATSAPP_AUTHS must have the same number of entries")
 	}
 
 	return nil

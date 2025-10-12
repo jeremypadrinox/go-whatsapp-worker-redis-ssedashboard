@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	whatsappClient *whatsapp.Client
+	whatsappClient whatsapp.MessageSender
 	workerService  *worker.Processor
 	databaseClient database.DatabaseInterface
 	redisClient    *redis.Client
@@ -229,8 +229,32 @@ func initWhatsAppClient() {
 
 	logger := logrus.StandardLogger()
 
-	whatsappClient = whatsapp.NewClient(config.WhatsAppAPIURL, config.WhatsAppAPIKey, logger)
-	logrus.Info("✅ WhatsApp client ready")
+	if len(appConfig.WhatsAppEndpoints) > 1 {
+		// Create circuit breaker config from app config
+		circuitConfig := whatsapp.CircuitBreakerConfig{
+			FailureThreshold: appConfig.CircuitBreakerFailureThreshold,
+			SuccessThreshold: appConfig.CircuitBreakerSuccessThreshold,
+			OpenTimeout:      appConfig.CircuitBreakerOpenTimeout,
+			HalfOpenTimeout:  appConfig.CircuitBreakerHalfOpenTimeout,
+		}
+		
+		whatsappClient = whatsapp.NewLoadBalancerWithConfig(
+			appConfig.WhatsAppEndpoints,
+			appConfig.WhatsAppAuths,
+			logger,
+			circuitConfig,
+		)
+		logrus.Infof("✅ WhatsApp load balancer ready with %d endpoints (circuit breaker: %v)", 
+			len(appConfig.WhatsAppEndpoints), appConfig.CircuitBreakerEnabled)
+	} else {
+		whatsappClient = whatsapp.NewClient(
+			appConfig.WhatsAppBaseURL,
+			appConfig.WhatsAppAuth,
+			logger,
+		)
+		logrus.Info("✅ WhatsApp client ready")
+	}
+
 	whatsappInitialized = true
 }
 
@@ -262,12 +286,12 @@ func initWorkerService() {
 	workerInitialized = true
 }
 
-func GetSharedComponents() (database.DatabaseInterface, *whatsapp.Client, *worker.Processor) {
+func GetSharedComponents() (database.DatabaseInterface, whatsapp.MessageSender, *worker.Processor) {
 	ensureComponentsInitialized()
 	return databaseClient, whatsappClient, workerService
 }
 
-func GetSharedComponentsWithRedis() (database.DatabaseInterface, *redis.Client, *whatsapp.Client, *worker.Processor) {
+func GetSharedComponentsWithRedis() (database.DatabaseInterface, *redis.Client, whatsapp.MessageSender, *worker.Processor) {
 	ensureComponentsInitialized()
 	return databaseClient, redisClient, whatsappClient, workerService
 }

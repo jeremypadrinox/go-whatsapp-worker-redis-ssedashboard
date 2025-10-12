@@ -5,7 +5,13 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "8084:8084"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     environment:
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -37,6 +43,8 @@ services:
       REDIS_STREAM_MAX_LEN: ${REDIS_STREAM_MAX_LEN}
       WHATSAPP_BASE_URL: ${WHATSAPP_BASE_URL}
       WHATSAPP_AUTH: ${WHATSAPP_AUTH}
+      WHATSAPP_ENDPOINTS: ${WHATSAPP_ENDPOINTS}
+      WHATSAPP_AUTHS: ${WHATSAPP_AUTHS}
       ENABLE_AUTH: ${ENABLE_AUTH}
       AUTH_TYPE: ${AUTH_TYPE}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
@@ -57,6 +65,12 @@ services:
       RATE_DELAY_JITTER_MS: ${RATE_DELAY_JITTER_MS}
       RATE_BURST_LIMIT: ${RATE_BURST_LIMIT}
       RATE_COOLDOWN_SECONDS: ${RATE_COOLDOWN_SECONDS}
+      BULK_CHUNK_SIZE: ${BULK_CHUNK_SIZE}
+      CIRCUIT_BREAKER_ENABLED: ${CIRCUIT_BREAKER_ENABLED}
+      CIRCUIT_BREAKER_FAILURE_THRESHOLD: ${CIRCUIT_BREAKER_FAILURE_THRESHOLD}
+      CIRCUIT_BREAKER_SUCCESS_THRESHOLD: ${CIRCUIT_BREAKER_SUCCESS_THRESHOLD}
+      CIRCUIT_BREAKER_OPEN_TIMEOUT: ${CIRCUIT_BREAKER_OPEN_TIMEOUT}
+      CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT: ${CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT}
       TYPING_DELAY_MIN: ${TYPING_DELAY_MIN}
       TYPING_DELAY_MAX: ${TYPING_DELAY_MAX}
       NATURAL_BREAK_INTERVAL: ${NATURAL_BREAK_INTERVAL}
@@ -69,7 +83,10 @@ services:
       API_PORT: ${API_PORT}
     volumes:
       - logs:/app/logs
+      - tmp:/app/tmp
 
 volumes:
   logs:
+    driver: local
+  tmp:
     driver: local
